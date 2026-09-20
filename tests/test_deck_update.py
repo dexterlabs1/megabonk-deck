@@ -53,8 +53,45 @@ class DeckUpdateTests(unittest.TestCase):
         with self.assertRaises(RuntimeError):u.restore(self.state)
         self.assertEqual(self.target.read_bytes(),b'newer mod')
 
+    def install_old_beta(self):
+        old = b'old beta DLL'
+        with patch.object(u, 'BETA_DLL_SHA', hashlib.sha256(old).hexdigest()):
+            package = io.BytesIO()
+            with zipfile.ZipFile(package, 'w') as z: z.writestr('MegabonkTogether.dll', old)
+            u.apply_update(self.game, self.state, package.getvalue())
+        return hashlib.sha256(old).hexdigest()
+
+    def test_upgrade_beta1_restores_official_not_beta1(self):
+        old_sha = self.install_old_beta()
+        original = json.loads((self.state/'deck-beta-backup.json').read_text())['original']
+        with patch.object(u, 'PREVIOUS_BETA_SHA', old_sha):
+            self.assertTrue(u.apply_update(self.game, self.state, self.package))
+            self.assertEqual(json.loads((self.state/'deck-beta-backup.json').read_text())['original'], original)
+            u.restore(self.state)
+        self.assertEqual(self.target.read_bytes(), b'original DLL')
+
+    def test_old_beta_restore_supported(self):
+        old_sha = self.install_old_beta()
+        with patch.object(u, 'PREVIOUS_BETA_SHA', old_sha): u.restore(self.state)
+        self.assertEqual(self.target.read_bytes(), b'original DLL')
+
+    def test_missing_old_backup_refuses_upgrade(self):
+        old_sha = self.install_old_beta()
+        (self.state/'deck-beta-backup.json').unlink()
+        with patch.object(u, 'PREVIOUS_BETA_SHA', old_sha):
+            with self.assertRaises(RuntimeError): u.apply_update(self.game, self.state, self.package)
+        self.assertEqual(self.target.read_bytes(), b'old beta DLL')
+
+    def test_corrupt_original_backup_refuses_upgrade(self):
+        old_sha = self.install_old_beta()
+        info = json.loads((self.state/'deck-beta-backup.json').read_text())
+        Path(info['original']).write_bytes(b'corrupt')
+        with patch.object(u, 'PREVIOUS_BETA_SHA', old_sha):
+            with self.assertRaises(RuntimeError): u.apply_update(self.game, self.state, self.package)
+        self.assertEqual(self.target.read_bytes(), b'old beta DLL')
+
     def test_real_release_archive_matches_hashes(self):
-        p=Path(__file__).resolve().parents[1]/'releases/megabonk-deck-beta1.zip'
+        p=Path(__file__).resolve().parents[1]/'releases/megabonk-deck-beta2.zip'
         self.assertEqual(hashlib.sha256(p.read_bytes()).hexdigest(),u.PACKAGE_SHA)
         # Use the unmocked pinned digest from source for the built artifact.
         import ast

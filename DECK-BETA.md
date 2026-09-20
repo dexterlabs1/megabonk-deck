@@ -1,9 +1,9 @@
-# Deck controls and Steam invites — beta 1
+# Deck controls — beta 2 freeze mitigation
 
 Unofficial GPL-2.0 modification of Megabonk Together 5.1.0. The source base is
 Fcornaire/megabonk-together commit 009e4bac2731364cbcebe8324f1fbce34c528806;
 its plugin and common source match tag 5.1.0 (041881b79682a7845c5afc2ebf6887f809808a03).
-Only client UI, local input and Steam invitation integration are changed.
+Only client UI and local input are changed. Experimental native Steam integration from beta 1 has been removed after a user reported a freeze when opening Invite Friends. The exact runtime cause has not been reproduced here.
 The protocol and version sent to matchmaking remain 5.1.0.
 
 ## Changes
@@ -14,32 +14,24 @@ The protocol and version sent to matchmaking remain 5.1.0.
 - Restore hover feedback, prevent duplicate Together dialogs, and block clicks
   through dialog backgrounds.
 - B backs out of text input, submenus, and dialogs; while connecting it cancels.
-- Make room-code/name fields controller selectable; request Steam's floating
-  keyboard when supported (STEAM+X is the fallback).
+- Make room-code/name fields controller selectable; use STEAM+X for the keyboard.
 - Keep the cursor unlocked and visible in the main menu and mod dialogs.
   Steam Input must still map the right trackpad to Mouse to send mouse movement.
 - On-screen control hints; Paste Code; remember the last attempted join code for
   this game session only; validate codes; 200 ms submit guard on opening dialogs.
-- Host's lobby has Invite Friends. It opens Steam's invite picker using the room
-  code as the connect string. Starting through an accepted invite queues the room;
-  a GameRichPresenceJoinRequested callback handles an already-running client when
-  the game's Steam callback pump dispatches it. Neither path interrupts a run.
-- If the Steam API or picker is unavailable, the lobby button copies the room code.
-  No invites are sent until the player chooses a recipient in Steam.
+- Host's lobby has Show Room Code / Hide Room Code. Share that code with your
+  friend, who enters it in Together > Friendlies to join. Revealing the code uses
+  only local UI: no Steam overlay, native callback, or clipboard write.
+- Upgrades beta 1 directly while retaining the original official DLL backup.
 
 ## Validation and limits
 
-Compiled in Release with PROTON=true against the upstream project and stripped
-reference assemblies. Invite parsing and the callback payload decoding are tested
-without Steam; no test sends invitations. The installer has filesystem tests.
-**No physical Steam Deck/controller, in-game Unity UI, Steam overlay, or two-account
-invite acceptance test was possible here. This is a beta, not a verified fix.**
-
-The live invite callback uses the Windows x64 Steam callback ABI, including while
-running under Proton. A game using only Steam's manual callback dispatcher might
-not deliver that callback; close the receiving game and accept the invite again
-in that case, or join with the code. Both players need this beta for automatic
-invite-to-room handling. Normal code-based joining remains the fallback.
+Compiled in Release for Proton. Pure room-code parsing and removal checks, plus
+installer upgrade/restore filesystem tests, run without Steam.
+**Not tested on a physical Steam Deck, in-game Unity UI, or a live multiplayer
+session.** Beta 2 removes the suspected native invite path rather than claiming
+that the user's freeze has been reproduced. Steam invites and automatic joining
+are unavailable. Normal room-code joining is unchanged.
 
 ## Build
 
@@ -59,7 +51,7 @@ original game assemblies. The source archive includes all modified and unmodifie
 plugin/common C# sources, project files, tests and the upstream GPL license;
 compile-only reference binaries and generated build outputs are excluded.
 
-Run the pure invite/callback checks, supplying BepInEx core and reference folders:
+Run the pure room-code/removal checks, supplying BepInEx core and reference folders:
 
 ```sh
 dotnet run --project tests/DeckSmoke -- \
@@ -70,8 +62,7 @@ dotnet run --project tests/DeckSmoke -- \
 Before calling the beta stable, verify: D-pad reaches Together; A opens once;
 Friendlies/Host/Join/name/code/Paste can be selected; B backs out once; menus behind
 popups do not react; cursor works with a Mouse trackpad binding; gameplay controls
-are unchanged; invites join from both running and closed clients; overlay-disabled
-fallback works; restore launcher restores the prior DLL.
+are unchanged; Show/Hide Room Code works without opening the overlay; manual code joining works; restore launcher restores the prior DLL.
 
 ## Inspiration and credits
 

@@ -2,30 +2,29 @@
 
 A downloadable launcher that installs **Megabonk Together 5.1.0 (Proton)** and **BepInEx 6 build 752**. No terminal commands, sudo, password, or disabling SteamOS read-only mode needed.
 
-## Deck controls + Steam invites beta
+## Deck beta 2 — invite freeze mitigation
 
-Already have Together 5.1.0 working? Close Megabonk, then open this updater in
-Desktop Mode. Steam can stay open.
+**Beta 1's experimental Steam invites caused a reported freeze. Download this
+new updater even if you already downloaded the previous one.** Close Megabonk,
+then open it in Desktop Mode. Steam can stay open.
 
-**[Download Deck beta update](https://github.com/dexterlabs1/megabonk-deck/raw/refs/heads/main/Update-Deck-Controls.desktop)** ·
+**[Download Deck beta 2 update](https://github.com/dexterlabs1/megabonk-deck/raw/refs/heads/main/Update-Deck-Controls.desktop)** ·
 **[Download restore launcher](https://github.com/dexterlabs1/megabonk-deck/raw/refs/heads/main/Restore-Original-Multiplayer.desktop)**
 
-This replaces only the mod DLL and backs up the previous one. It adds controller
-menu navigation/focus, B to go back, text-entry helpers, visible menu cursor,
-Paste Code, session-only remembered room code, a short accidental-confirm guard,
-and experimental Steam invites. Host Friendlies, then select **Invite Friends**.
-A separate **Copy Code** button remains available. Both players need the beta for
-automatic invite-to-room handling; accepting an invite never interrupts a run.
+Beta 2 removes the native Steam invitation integration, retaining controller
+navigation/focus, B to go back, text-entry helpers, visible menu cursor, Paste Code,
+and session-only remembered codes. Host Friendlies, select **Show Room Code**,
+and share the code with your buddy. They enter it in Together > Friendlies to join.
+Use STEAM+X for the keyboard. The trackpad needs Mouse assigned in Steam Input.
 
-**Compiled and helper-tested, but not tested on a physical Deck or a live Steam
-invite session.** If an invite accepted while the game is running does not join,
-close the receiving game and accept again, or use the room code. The right trackpad
-still needs **Mouse** assigned in Steam Input; holding STEAM + right trackpad is a
-fallback. Hardware verification is needed before calling this stable.
+The updater installs over official 5.1.0 or beta 1 and preserves the original
+mod backup. The menu says **Deck beta 2** after updating. No save files change.
+**Compiled and helper-tested; no physical Deck or in-game verification here.**
+Steam invites are disabled while their freeze is unresolved.
 
 [Beta details and test limits](DECK-BETA.md) ·
-[Complete mod source](mod-source/megabonk-deck-beta1-source.zip) ·
-[Review the source patch](mod-source/deck-beta1.patch)
+[Complete mod source](mod-source/megabonk-deck-beta2-source.zip) ·
+[Review the source patch](mod-source/deck-beta2.patch)
 
 ## Installer update — Steam VDF compatibility
 

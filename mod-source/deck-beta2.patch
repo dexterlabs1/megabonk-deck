@@ -1,0 +1,772 @@
+diff --git a/src/plugin/Helpers/RoomCodeTools.cs b/src/plugin/Helpers/RoomCodeTools.cs
+new file mode 100644
+index 0000000..18e7f61
+--- /dev/null
++++ b/src/plugin/Helpers/RoomCodeTools.cs
+@@ -0,0 +1,14 @@
++using System.Text.RegularExpressions;
++namespace MegabonkTogether.Helpers
++{
++    internal static class RoomCodeTools
++    {
++        internal static string ParseRoom(string text)
++        {
++            if (text == null || text.Length > 4096) return null;
++            var m = Regex.Match(text, @"(?:^|\s)\+megabonk_together_room ([A-Za-z0-9]{4,32})(?=\s|$)");
++            return m.Success ? m.Groups[1].Value.ToUpperInvariant() : null;
++        }
++
++    }
++}
+diff --git a/src/plugin/Helpers/SteamInviteBridge.cs b/src/plugin/Helpers/SteamInviteBridge.cs
+deleted file mode 100644
+index e69de29..0000000
+diff --git a/src/plugin/MegabonkTogether.Plugin.csproj b/src/plugin/MegabonkTogether.Plugin.csproj
+index 87fe2c3..0bf718b 100644
+--- a/src/plugin/MegabonkTogether.Plugin.csproj
++++ b/src/plugin/MegabonkTogether.Plugin.csproj
+@@ -1,4 +1,4 @@
+-﻿<Project Sdk="Microsoft.NET.Sdk">
++<Project Sdk="Microsoft.NET.Sdk">
+ 
+   <PropertyGroup>
+     <TargetFramework>net6.0</TargetFramework>
+@@ -36,8 +36,8 @@
+ 	</ItemGroup>
+ 
+ 	<ItemGroup>
+-    <PackageReference Include="BepInEx.Unity.IL2CPP" Version="6.0.0-be.*" IncludeAssets="compile" />
+-    <PackageReference Include="BepInEx.PluginInfoProps" Version="2.*" />
++    <PackageReference Include="BepInEx.Unity.IL2CPP" Version="6.0.0-be.752" IncludeAssets="compile" />
++    <PackageReference Include="BepInEx.PluginInfoProps" Version="2.1.0" />
+     <PackageReference Include="LiteNetLib" Version="1.3.5" />
+ 	<PackageReference Include="Microsoft.Extensions.Hosting" Version="6.0.1" />
+ 	<PackageReference Include="Profanity.Detector" Version="0.1.8" />
+diff --git a/src/plugin/Patches/MainMenu.cs b/src/plugin/Patches/MainMenu.cs
+index 328ece4..2f80fe0 100644
+--- a/src/plugin/Patches/MainMenu.cs
++++ b/src/plugin/Patches/MainMenu.cs
+@@ -1,4 +1,4 @@
+-﻿using HarmonyLib;
++using HarmonyLib;
+ using MegabonkTogether.Common;
+ using MegabonkTogether.Configuration;
+ using MegabonkTogether.Scripts.Button;
+@@ -59,11 +59,14 @@ namespace MegabonkTogether.Patches
+             versionTmp.fontSize = tmpText.fontSize * 0.45f;
+             versionTmp.alignment = tmpText.alignment;
+             versionTmp.color = tmpText.color;
+-            versionTmp.text = $"v{MyPluginInfo.PLUGIN_VERSION}";
++            versionTmp.text = $"v{MyPluginInfo.PLUGIN_VERSION} Deck beta 2";
+ 
+ 
+             go.transform.SetParent(playBtn.transform.parent);
+ 
++            var navigationWindow = go.GetComponentInParent<Window>();
++            if (navigationWindow != null) navigationWindow.FindAllButtonsInWindow();
++
+             Plugin.Instance.PlayTogetherButton = customButton;
+             Plugin.Instance.SetMainMenu(__instance);
+ 
+diff --git a/src/plugin/Patches/MyInputManager.cs b/src/plugin/Patches/MyInputManager.cs
+index 54d62bd..0d479e1 100644
+--- a/src/plugin/Patches/MyInputManager.cs
++++ b/src/plugin/Patches/MyInputManager.cs
+@@ -1,4 +1,4 @@
+-﻿using HarmonyLib;
++using HarmonyLib;
+ using MegabonkTogether.Common;
+ using Microsoft.Extensions.DependencyInjection;
+ 
+@@ -9,13 +9,34 @@ namespace MegabonkTogether.Patches
+     {
+         private static readonly IAutoUpdaterService autoUpdaterService = Plugin.Services.GetService<IAutoUpdaterService>();
+ 
++        [HarmonyPrefix]
++        [HarmonyPatch(nameof(MyInputManager.GetAxis))]
++        public static bool GetAxis_Prefix(string __0, ref float __result)
++        {
++            if (Scripts.Modal.DeckMenuControls.IsEditingText &&
++                (__0 == MyInputManager.UIHorizontal || __0 == MyInputManager.UIVertical))
++            { __result = 0; return false; }
++            return true;
++        }
++
+         /// <summary>
+         /// Prevent input when an update is available
+         /// </summary>
+         [HarmonyPrefix]
+         [HarmonyPatch(nameof(MyInputManager.GetButtonDown))]
+-        public static bool GetButtonDown_Prefix(ref bool __result)
++        public static bool GetButtonDown_Prefix(string __0, ref bool __result)
+         {
++            if (Scripts.Modal.DeckMenuControls.IsModalActive &&
++                (__0 == MyInputManager.UICancel || __0 == MyInputManager.UIAbort))
++            {
++                __result = false;
++                return false;
++            }
++            if (Scripts.Modal.DeckMenuControls.IsModalActive && __0 == MyInputManager.UISubmit &&
++                UnityEngine.Time.unscaledTime < Scripts.Modal.ModalBase.SubmitReadyAt)
++            { __result = false; return false; }
++            if (Scripts.Modal.DeckMenuControls.IsEditingText && __0 == MyInputManager.UISubmit)
++            { __result = false; return false; }
+             if (autoUpdaterService.IsAnUpdateAvailable())
+             {
+                 __result = false;
+@@ -29,8 +50,19 @@ namespace MegabonkTogether.Patches
+         /// </summary>
+         [HarmonyPrefix]
+         [HarmonyPatch(nameof(MyInputManager.GetButtonUp))]
+-        public static bool GetButtonUp_Prefix(ref bool __result)
++        public static bool GetButtonUp_Prefix(string __0, ref bool __result)
+         {
++            if (Scripts.Modal.DeckMenuControls.IsModalActive &&
++                (__0 == MyInputManager.UICancel || __0 == MyInputManager.UIAbort))
++            {
++                __result = false;
++                return false;
++            }
++            if (Scripts.Modal.DeckMenuControls.IsModalActive && __0 == MyInputManager.UISubmit &&
++                UnityEngine.Time.unscaledTime < Scripts.Modal.ModalBase.SubmitReadyAt)
++            { __result = false; return false; }
++            if (Scripts.Modal.DeckMenuControls.IsEditingText && __0 == MyInputManager.UISubmit)
++            { __result = false; return false; }
+             if (autoUpdaterService.IsAnUpdateAvailable())
+             {
+                 __result = false;
+@@ -44,8 +76,19 @@ namespace MegabonkTogether.Patches
+         /// </summary>
+         [HarmonyPrefix]
+         [HarmonyPatch(nameof(MyInputManager.GetButton))]
+-        public static bool GetButton_Prefix(ref bool __result)
++        public static bool GetButton_Prefix(string __0, ref bool __result)
+         {
++            if (Scripts.Modal.DeckMenuControls.IsModalActive &&
++                (__0 == MyInputManager.UICancel || __0 == MyInputManager.UIAbort))
++            {
++                __result = false;
++                return false;
++            }
++            if (Scripts.Modal.DeckMenuControls.IsModalActive && __0 == MyInputManager.UISubmit &&
++                UnityEngine.Time.unscaledTime < Scripts.Modal.ModalBase.SubmitReadyAt)
++            { __result = false; return false; }
++            if (Scripts.Modal.DeckMenuControls.IsEditingText && __0 == MyInputManager.UISubmit)
++            { __result = false; return false; }
+             if (autoUpdaterService.IsAnUpdateAvailable())
+             {
+                 __result = false;
+diff --git a/src/plugin/Patches/WindowManager.cs b/src/plugin/Patches/WindowManager.cs
+index baefd9d..74a7f26 100644
+--- a/src/plugin/Patches/WindowManager.cs
++++ b/src/plugin/Patches/WindowManager.cs
+@@ -1,4 +1,4 @@
+-﻿using Assets.Scripts.Managers;
++using Assets.Scripts.Managers;
+ using HarmonyLib;
+ using MegabonkTogether.Common;
+ using MegabonkTogether.Common.Models;
+@@ -25,6 +25,8 @@ namespace MegabonkTogether.Patches
+         private static readonly IAutoUpdaterService autoUpdaterService = Plugin.Services.GetService<IAutoUpdaterService>();
+         private static readonly IUdpClientService udpClientService = Plugin.Services.GetService<IUdpClientService>();
+         private static bool hasShownUpdateModal = false;
++        private static readonly System.Collections.Generic.List<MyButton> friendliesActions = new();
++        private static Window friendliesWindow;
+         private static GameObject friendliesInfoDisplay;
+         private static GameObject readyStatusDisplay;
+         private static MyButton previousSelectedButton = null;
+@@ -263,19 +265,16 @@ namespace MegabonkTogether.Patches
+             }
+ 
+             var copyButton = copyButtonObj.AddComponent<CustomButton>();
+-            copyButton.SetOnClickAction(OnCopyCodeClicked);
+-            copyButton.OverrideStartHoverAction(() =>
++            copyButton.SetOnClickAction(() =>
+             {
+-                previousSelectedButton = ButtonManager.selectedButton2;
++                bool hidden = text.text.Contains("Code: ******");
++                text.text = hidden
++                    ? text.text.Replace("Code: ******", "Code: " + mode.RoomCode)
++                    : text.text.Replace("Code: " + mode.RoomCode, "Code: ******");
++                copyButtonObj.GetComponent<ButtonTextWrapper>().t_text.text = hidden ? "Hide Room Code" : "Show Room Code";
+             });
+-            copyButton.OverrideEndHoverAction(() =>
+-            {
+-                ButtonManager.selectedButton2 = previousSelectedButton;
+-                previousSelectedButton = null;
+-            });
+-
+             var textWrapper = copyButtonObj.GetComponent<ButtonTextWrapper>();
+-            textWrapper.t_text.text = "Copy Code";
++            textWrapper.t_text.text = "Show Room Code";
+             textWrapper.t_text.fontSize = 25;
+ 
+             var copyButtonRect = copyButtonObj.GetComponent<RectTransform>();
+@@ -289,25 +288,26 @@ namespace MegabonkTogether.Patches
+ 
+             copyButton.state = MyButton.EButtonState.Active;
+             copyButton.RefreshState();
+-        }
+-
+-        private static void OnCopyCodeClicked()
+-        {
+-            AudioManager.Instance.PlaySfx(AudioManager.Instance.uiSelect.sounds[0]);
+-
+-            try
+-            {
+-                ClipboardService.SetText(Plugin.Instance.Mode.RoomCode);
+-                Plugin.Log.LogInfo("Room code copied to clipboard");
+-            }
+-            catch (System.Exception ex)
++            if (newWindow != null)
+             {
+-                Plugin.Log.LogError($"Failed to copy to clipboard: {ex.Message}");
++                friendliesWindow = newWindow;
++                friendliesActions.Add(copyButton);
++                newWindow.allButtons.Add(copyButton);
++                newWindow.allButtonsHashed.Add(copyButton.gameObject);
+             }
+         }
+ 
+         private static void DestroyFriendliesInfoDisplay()
+         {
++            if (friendliesWindow != null)
++                foreach (var button in friendliesActions)
++                    if (button != null)
++                    {
++                        friendliesWindow.allButtons.Remove(button);
++                        friendliesWindow.allButtonsHashed.Remove(button.gameObject);
++                    }
++            friendliesActions.Clear();
++            friendliesWindow = null;
+             if (friendliesInfoDisplay)
+             {
+                 GameObject.Destroy(friendliesInfoDisplay);
+diff --git a/src/plugin/Plugin.cs b/src/plugin/Plugin.cs
+index eb74f82..48ea3e1 100644
+--- a/src/plugin/Plugin.cs
++++ b/src/plugin/Plugin.cs
+@@ -1,4 +1,4 @@
+-﻿using Assets.Scripts.Game.MapGeneration.MapEvents;
++using Assets.Scripts.Game.MapGeneration.MapEvents;
+ using Assets.Scripts.Inventory__Items__Pickups;
+ using Assets.Scripts.Inventory__Items__Pickups.Items;
+ using Assets.Scripts.Inventory__Items__Pickups.Stats;
+@@ -124,6 +124,7 @@ namespace MegabonkTogether
+             ClassInjector.RegisterTypeInIl2Cpp<PlayTogetherButton>();
+             ClassInjector.RegisterTypeInIl2Cpp<CustomButton>();
+             ClassInjector.RegisterTypeInIl2Cpp<ModalBase>();
++            ClassInjector.RegisterTypeInIl2Cpp<DeckMenuControls>();
+             ClassInjector.RegisterTypeInIl2Cpp<NetworkMenuTab>();
+             ClassInjector.RegisterTypeInIl2Cpp<LoadingModal>();
+             ClassInjector.RegisterTypeInIl2Cpp<UpdateAvailableModal>();
+@@ -204,6 +205,7 @@ namespace MegabonkTogether
+             var go = new GameObject("MainThreadDispatcher");
+             GameObject.DontDestroyOnLoad(go);
+             go.AddComponent<MainThreadDispatcher>();
++            go.AddComponent<DeckMenuControls>();
+ 
+             var goNetworkHandler = new GameObject("NetworkHandler");
+             GameObject.DontDestroyOnLoad(goNetworkHandler);
+diff --git a/src/plugin/Scripts/Button/CustomButton.cs b/src/plugin/Scripts/Button/CustomButton.cs
+index 4acd050..2e61de7 100644
+--- a/src/plugin/Scripts/Button/CustomButton.cs
++++ b/src/plugin/Scripts/Button/CustomButton.cs
+@@ -33,11 +33,13 @@ namespace MegabonkTogether.Scripts.Button
+ 
+         public override void StartHover()
+         {
++            base.StartHover();
+             onStartHover?.Invoke();
+         }
+ 
+         public override void StopHover()
+         {
++            base.StopHover();
+             onEndHover?.Invoke();
+         }
+ 
+diff --git a/src/plugin/Scripts/Button/PlayTogetherButton.cs b/src/plugin/Scripts/Button/PlayTogetherButton.cs
+index a439d81..65dba6c 100644
+--- a/src/plugin/Scripts/Button/PlayTogetherButton.cs
++++ b/src/plugin/Scripts/Button/PlayTogetherButton.cs
+@@ -1,4 +1,4 @@
+-﻿using UnityEngine;
++using UnityEngine;
+ 
+ namespace MegabonkTogether.Scripts.Button
+ {
+@@ -14,7 +14,7 @@ namespace MegabonkTogether.Scripts.Button
+ 
+         private void OnPlayTogetherClick()
+         {
+-            //ButtonManager.selectedButton2 = this;
++            if (Plugin.Instance.NetworkTab != null) return;
+ 
+             var networkMenuObj = new GameObject("NetworkMenuTab");
+             Plugin.Instance.NetworkTab = networkMenuObj.AddComponent<NetworkMenuTab>();
+diff --git a/src/plugin/Scripts/Modal/ChangelogModal.cs b/src/plugin/Scripts/Modal/ChangelogModal.cs
+index 3ae0753..52028fe 100644
+--- a/src/plugin/Scripts/Modal/ChangelogModal.cs
++++ b/src/plugin/Scripts/Modal/ChangelogModal.cs
+@@ -1,4 +1,4 @@
+-﻿using MegabonkTogether.Common;
++using MegabonkTogether.Common;
+ using MegabonkTogether.Configuration;
+ using MegabonkTogether.Helpers;
+ using MegabonkTogether.Scripts.Button;
+@@ -289,6 +289,8 @@ namespace MegabonkTogether.Scripts.Modal
+             }
+         }
+ 
++        internal override void ControllerBack() { OnCloseClicked(); }
++
+         private void OnCloseClicked()
+         {
+             foreach (var button in WindowManager.activeWindow.allButtons)
+diff --git a/src/plugin/Scripts/Modal/DeckMenuControls.cs b/src/plugin/Scripts/Modal/DeckMenuControls.cs
+new file mode 100644
+index 0000000..53d1f24
+--- /dev/null
++++ b/src/plugin/Scripts/Modal/DeckMenuControls.cs
+@@ -0,0 +1,164 @@
++using Assets.Scripts.Managers;
++using System;
++using System.Collections.Generic;
++using TMPro;
++using UnityEngine;
++
++namespace MegabonkTogether.Scripts.Modal
++{
++    // Reuse Megabonk's own navigation/input mapping rather than polling raw
++    // joystick buttons or changing Steam Input bindings.
++    public class DeckMenuControls : MonoBehaviour
++    {
++        private static DeckMenuControls instance;
++        public void Awake() { instance = this; }
++        internal static void ReleaseModal(ModalBase modal)
++        {
++            Modals.Remove(modal);
++            if (instance != null && instance.currentModal == modal) instance.RestoreWindow();
++        }
++        private Window owner;
++        private Il2CppSystem.Collections.Generic.HashSet<GameObject> savedButtonSet;
++        private Il2CppSystem.Collections.Generic.List<MyButton> savedButtons;
++        private MyButton savedSelection;
++        private ModalBase currentModal;
++        private bool cursorOwned;
++        private bool savedCursorVisible;
++        private CursorLockMode savedCursorLock;
++        private int previousSignature;
++        private bool loggedFailure;
++        internal static readonly List<ModalBase> Modals = new();
++        internal static bool IsEditingText
++        {
++            get
++            {
++                var modal = TopModal();
++                if (modal == null) return false;
++                foreach (var input in modal.NavigationPanel.GetComponentsInChildren<TMP_InputField>())
++                    if (input.isFocused) return true;
++                return false;
++            }
++        }
++        internal static bool IsModalActive => TopModal() != null;
++
++        private static ModalBase TopModal()
++        {
++            for (int i = Modals.Count - 1; i >= 0; --i)
++            {
++                var modal = Modals[i];
++                if (modal == null) { Modals.RemoveAt(i); continue; }
++                if (modal.NavigationPanel != null && modal.NavigationPanel.activeInHierarchy)
++                    return modal;
++            }
++            return null;
++        }
++
++        public void LateUpdate()
++        {
++            try { Tick(); }
++            catch (Exception ex)
++            {
++                RestoreWindow();
++                if (!loggedFailure) { Plugin.Log.LogError("Deck menu controls: " + ex); loggedFailure = true; }
++            }
++        }
++
++        private void Tick()
++        {
++            var modal = TopModal();
++            var active = WindowManager.activeWindow;
++            bool menu = modal != null || (active != null && active.name == "Menu");
++            if (menu)
++            {
++                if (!cursorOwned)
++                {
++                    savedCursorVisible = Cursor.visible;
++                    savedCursorLock = Cursor.lockState;
++                    cursorOwned = true;
++                }
++                Cursor.lockState = CursorLockMode.None;
++                Cursor.visible = true;
++            }
++            else RestoreCursor();
++
++            if (owner != active || currentModal != modal)
++            {
++                RestoreWindow();
++                if (modal != null && active != null)
++                {
++                    owner = active;
++                    savedButtons = active.allButtons;
++                    savedButtonSet = active.allButtonsHashed;
++                    savedSelection = ButtonManager.selectedButton2;
++                    currentModal = modal;
++                    previousSignature = 0;
++                }
++            }
++            if (owner == null || modal == null) return;
++
++            var buttons = new Il2CppSystem.Collections.Generic.List<MyButton>();
++            int signature = 17;
++            foreach (var button in modal.NavigationPanel.GetComponentsInChildren<MyButton>())
++            {
++                if (button == null || !button.gameObject.activeInHierarchy || button.state != MyButton.EButtonState.Active)
++                    continue;
++                buttons.Add(button);
++                signature = unchecked(signature * 31 + button.GetInstanceID());
++            }
++            if (signature != previousSignature)
++            {
++                owner.allButtons = buttons;
++                var set = new Il2CppSystem.Collections.Generic.HashSet<GameObject>();
++                foreach (var button in buttons) set.Add(button.gameObject);
++                owner.allButtonsHashed = set;
++                previousSignature = signature;
++                var selected = ButtonManager.selectedButton2;
++                if (selected == null || !buttons.Contains(selected))
++                {
++                    var preferred = modal.DefaultControllerButton;
++                    if (preferred != null && buttons.Contains(preferred)) ButtonManager.ForceHoverButton(preferred);
++                    else if (buttons.Count > 0) ButtonManager.ForceHoverButton(buttons[0]);
++                    else ButtonManager.SetNull();
++                }
++            }
++
++            // Read the underlying player here; the prefix suppresses only
++            // cancel/abort in the background game's normal window handlers.
++            var player = MyInputManager.GetPlayer();
++            if (player != null && player.GetButtonDown(MyInputManager.UICancel))
++            {
++                foreach (var input in modal.NavigationPanel.GetComponentsInChildren<TMP_InputField>())
++                {
++                    if (input.isFocused) { input.DeactivateInputField(); return; }
++                }
++                modal.ControllerBack();
++            }
++        }
++
++        private void RestoreWindow()
++        {
++            if (owner != null)
++            {
++                owner.allButtons = savedButtons;
++                owner.allButtonsHashed = savedButtonSet;
++                if (owner == WindowManager.activeWindow && savedSelection != null && savedSelection.gameObject.activeInHierarchy)
++                    ButtonManager.ForceHoverButton(savedSelection);
++            }
++            owner = null;
++            currentModal = null;
++            savedButtons = null;
++            savedButtonSet = null;
++            savedSelection = null;
++        }
++
++        private void RestoreCursor()
++        {
++            if (!cursorOwned) return;
++            Cursor.visible = savedCursorVisible;
++            Cursor.lockState = savedCursorLock;
++            cursorOwned = false;
++        }
++
++        public void OnDestroy() { RestoreWindow(); RestoreCursor(); }
++    }
++}
+diff --git a/src/plugin/Scripts/Modal/LoadingModal.cs b/src/plugin/Scripts/Modal/LoadingModal.cs
+index 83cd714..3389988 100644
+--- a/src/plugin/Scripts/Modal/LoadingModal.cs
++++ b/src/plugin/Scripts/Modal/LoadingModal.cs
+@@ -7,6 +7,7 @@ namespace MegabonkTogether.Scripts.Modal
+     /// </summary>
+     internal class LoadingModal : ModalBase
+     {
++        internal override void ControllerBack() { } // Non-cancellable task owns this dialog.
+         protected override void OnUICreated()
+         {
+             ShowLoader();
+diff --git a/src/plugin/Scripts/Modal/ModalBase.cs b/src/plugin/Scripts/Modal/ModalBase.cs
+index 076d2bb..16c336d 100644
+--- a/src/plugin/Scripts/Modal/ModalBase.cs
++++ b/src/plugin/Scripts/Modal/ModalBase.cs
+@@ -8,6 +8,10 @@ namespace MegabonkTogether.Scripts.Modal
+ {
+     internal abstract class ModalBase : MonoBehaviour
+     {
++        internal virtual MyButton DefaultControllerButton => null;
++        internal static float SubmitReadyAt;
++        internal GameObject NavigationPanel => panel;
++        internal virtual void ControllerBack() { CloseModal(); }
+         protected GameObject blocker;
+         protected GameObject panel;
+         protected GameObject loader;
+@@ -42,6 +46,8 @@ namespace MegabonkTogether.Scripts.Modal
+             CreateStatusText();
+ 
+             OnUICreated();
++            DeckMenuControls.Modals.Add(this);
++            SubmitReadyAt = Time.unscaledTime + 0.2f;
+         }
+ 
+         protected virtual void OnUICreated() { }
+@@ -61,7 +67,7 @@ namespace MegabonkTogether.Scripts.Modal
+             image.color = BlockerColor;
+             image.raycastTarget = true;
+ 
+-            blocker.transform.SetAsFirstSibling();
++            blocker.transform.SetAsLastSibling();
+         }
+ 
+         protected void CreatePanel(GameObject canvas)
+@@ -179,6 +185,7 @@ namespace MegabonkTogether.Scripts.Modal
+ 
+         protected void CloseModal()
+         {
++            DeckMenuControls.ReleaseModal(this);
+             if (blocker != null)
+             {
+                 Destroy(blocker);
+@@ -192,6 +199,8 @@ namespace MegabonkTogether.Scripts.Modal
+ 
+         public virtual void OnDestroy()
+         {
++            DeckMenuControls.ReleaseModal(this);
++            if (panel != null) Destroy(panel);
+             if (blocker != null)
+             {
+                 Destroy(blocker);
+diff --git a/src/plugin/Scripts/Modal/NetworkMenuTab.cs b/src/plugin/Scripts/Modal/NetworkMenuTab.cs
+index ab0a396..e2e5a88 100644
+--- a/src/plugin/Scripts/Modal/NetworkMenuTab.cs
++++ b/src/plugin/Scripts/Modal/NetworkMenuTab.cs
+@@ -1,4 +1,4 @@
+-﻿using Assets.Scripts.Settings___Saves.SaveFiles;
++using Assets.Scripts.Settings___Saves.SaveFiles;
+ using MegabonkTogether.Common.Models;
+ using MegabonkTogether.Configuration;
+ using MegabonkTogether.Helpers;
+@@ -14,6 +14,19 @@ namespace MegabonkTogether.Scripts
+ {
+     internal class NetworkMenuTab : ModalBase
+     {
++        internal override MyButton DefaultControllerButton
++        {
++            get
++            {
++                if (stopButton != null && stopButton.gameObject.activeInHierarchy) return stopButton;
++                if (hostButton != null && hostButton.gameObject.activeInHierarchy)
++                    return string.IsNullOrEmpty(codeInput.text) ? hostButton : joinButton;
++                if (friendliesButton != null && friendliesButton.gameObject.activeInHierarchy) return friendliesButton;
++                return netplayOptionsBackButton;
++            }
++        }
++        private static string lastRoom = "";
++        private CustomButton pasteButton;
+         private CustomButton randomButton;
+         private CustomButton friendliesButton;
+         private CustomButton closeButton;
+@@ -45,6 +58,14 @@ namespace MegabonkTogether.Scripts
+         private CustomButton sharedExpToggleRightButton;
+         private TextMeshProUGUI sharedExpToggleStatusText;
+ 
++        internal override void ControllerBack()
++        {
++            if (connectionCoroutine != null || (stopButton != null && stopButton.gameObject.activeInHierarchy)) OnStopClicked();
++            else if (friendliesBackButton != null && friendliesBackButton.gameObject.activeInHierarchy) OnFriendliesBackClicked();
++            else if (netplayOptionsBackButton != null && netplayOptionsBackButton.gameObject.activeInHierarchy) OnNetplayOptionsBackClicked();
++            else OnCloseClicked();
++        }
++
+         protected void Awake()
+         {
+             filter = new ProfanityFilter.ProfanityFilter();
+@@ -63,6 +84,84 @@ namespace MegabonkTogether.Scripts
+             CreateStopButton();
+             CreateFriendliesUI();
+             CreateNetplayOptionsUI();
++            MakeInputNavigable(playerNameInput);
++            MakeInputNavigable(codeInput);
++            codeInput.text = lastRoom;
++            pasteButton = CreateUtilityButton("Paste Code", new Vector2(0, -95), () =>
++            {
++                try
++                {
++                    var text = TextCopy.ClipboardService.GetText()?.Trim();
++                    var inviteRoom = RoomCodeTools.ParseRoom(text);
++                    var room = inviteRoom ?? text?.ToUpperInvariant();
++                    if (!IsValidRoom(room)) { SetStatusText("Clipboard does not contain a valid room code."); return; }
++                    codeInput.text = room;
++                    SetStatusText("Code pasted. Select Join when ready.");
++                }
++                catch { SetStatusText("Clipboard unavailable. Select the code field and press STEAM+X."); }
++            });
++            pasteButton.gameObject.SetActive(false);
++            var hints = new GameObject("DeckControlHints");
++            hints.transform.SetParent(panel.transform, false);
++            var hintRect = hints.AddComponent<RectTransform>();
++            hintRect.anchoredPosition = new Vector2(0, -255);
++            hintRect.sizeDelta = new Vector2(650, 32);
++            var hintText = hints.AddComponent<TextMeshProUGUI>();
++            hintText.text = "D-pad / stick: navigate    A: select    B: back    STEAM+X: keyboard";
++            hintText.fontSize = 20;
++            hintText.alignment = TextAlignmentOptions.Center;
++            hintText.raycastTarget = false;
++        }
++
++        private static bool IsValidRoom(string room) =>
++            room != null && System.Text.RegularExpressions.Regex.IsMatch(room, "^[A-Z0-9]{4,32}$");
++
++        private CustomButton CreateUtilityButton(string title, Vector2 position, System.Action action)
++        {
++            var go = GameObject.Instantiate(mainMenu.btnPlay.gameObject);
++            go.transform.SetParent(panel.transform, false);
++            var original = go.GetComponent<MyButtonNormal>();
++            if (original != null) DestroyImmediate(original);
++            var localized = go.GetComponentInChildren<LocalizeStringEvent>();
++            if (localized != null) DestroyImmediate(localized);
++            var uiButton = go.GetComponentInChildren<UnityEngine.UI.Button>();
++            if (uiButton != null) uiButton.onClick = new();
++            var button = go.AddComponent<CustomButton>();
++            button.SetOnClickAction(action);
++            var label = go.GetComponent<ButtonTextWrapper>().t_text;
++            label.text = title;
++            label.fontSize = 28;
++            var rect = go.GetComponent<RectTransform>();
++            rect.anchorMin = rect.anchorMax = rect.pivot = new Vector2(0.5f, 0.5f);
++            rect.anchoredPosition = position;
++            rect.sizeDelta = new Vector2(260, 50);
++            button.SetInteractable(true);
++            return button;
++        }
++
++        private void MakeInputNavigable(TMP_InputField input)
++        {
++            // TMP_InputField already inherits Selectable. Put the controller
++            // proxy on a child; Unity forbids a second Selectable on the field.
++            var proxyObject = new GameObject("ControllerInputFocus");
++            proxyObject.transform.SetParent(input.transform, false);
++            var rect = proxyObject.AddComponent<RectTransform>();
++            rect.anchorMin = Vector2.zero;
++            rect.anchorMax = Vector2.one;
++            rect.sizeDelta = Vector2.zero;
++            rect.anchoredPosition = Vector2.zero;
++            var highlight = proxyObject.AddComponent<Image>();
++            highlight.color = new Color(0, 0, 0, 0);
++            highlight.raycastTarget = false;
++            var uiButton = proxyObject.AddComponent<UnityEngine.UI.Button>();
++            uiButton.targetGraphic = highlight;
++            var proxy = proxyObject.AddComponent<CustomButton>();
++            proxy.button = uiButton;
++            proxy.background = highlight;
++            proxy.defaultColor = new Color(0, 0, 0, 0);
++            proxy.hoverColor = new Color(0.3f, 0.5f, 0.7f, 0.3f);
++            proxy.SetOnClickAction(() => { input.ActivateInputField(); });
++            proxy.SetInteractable(true);
+         }
+ 
+         private void CreateCloseButton()
+@@ -815,7 +914,6 @@ namespace MegabonkTogether.Scripts
+         protected override void Update()
+         {
+             base.Update();
+-
+             if (playerNameInput == null) return;
+ 
+             bool isFocused = playerNameInput.isFocused;
+@@ -902,15 +1000,16 @@ namespace MegabonkTogether.Scripts
+             AudioManager.Instance.PlaySfx(AudioManager.Instance.uiSelect.sounds[0]);
+ 
+             var code = codeInput.text.Trim().ToUpperInvariant();
+-            if (string.IsNullOrWhiteSpace(code))
++            if (!IsValidRoom(code))
+             {
+-                SetStatusText("Please enter a room code");
++                SetStatusText("Enter a room code (4–32 letters or numbers).");
+                 return;
+             }
+ 
+             Plugin.Instance.Mode.Mode = NetworkModeType.Friendlies;
+             Plugin.Instance.Mode.Role = Role.Client;
+             Plugin.Instance.Mode.RoomCode = code;
++            lastRoom = code;
+ 
+             UpdateFriendliesUI(false);
+ 
+@@ -978,6 +1077,7 @@ namespace MegabonkTogether.Scripts
+ 
+         private void UpdateFriendliesUI(bool isVisible)
+         {
++            if (pasteButton != null) pasteButton.gameObject.SetActive(isVisible);
+             friendliesTitle.SetActive(isVisible);
+             hostButton.gameObject.SetActive(isVisible);
+             codeLabel.SetActive(isVisible);
+diff --git a/src/plugin/Scripts/Modal/UpdateAvailableModal.cs b/src/plugin/Scripts/Modal/UpdateAvailableModal.cs
+index 4e1d9f2..9370c4b 100644
+--- a/src/plugin/Scripts/Modal/UpdateAvailableModal.cs
++++ b/src/plugin/Scripts/Modal/UpdateAvailableModal.cs
+@@ -150,6 +150,8 @@ namespace MegabonkTogether.Scripts.Modal
+             rectTransform.sizeDelta = new Vector2(300, 70);
+         }
+ 
++        internal override void ControllerBack() { OnCloseClicked(); }
++
+         private void OnCloseClicked()
+         {
+             AudioManager.Instance?.PlaySfx(AudioManager.Instance.uiSelect.sounds[0]);
+diff --git a/tests/DeckSmoke/DeckSmoke.csproj b/tests/DeckSmoke/DeckSmoke.csproj
+new file mode 100644
+index 0000000..4f8a35f
+--- /dev/null
++++ b/tests/DeckSmoke/DeckSmoke.csproj
+@@ -0,0 +1 @@
++<Project Sdk="Microsoft.NET.Sdk"><PropertyGroup><OutputType>Exe</OutputType><TargetFramework>net8.0</TargetFramework><ImplicitUsings>enable</ImplicitUsings></PropertyGroup></Project>
+diff --git a/tests/DeckSmoke/Program.cs b/tests/DeckSmoke/Program.cs
+new file mode 100644
+index 0000000..381341c
+--- /dev/null
++++ b/tests/DeckSmoke/Program.cs
+@@ -0,0 +1,23 @@
++using System.Reflection;
++using System.Runtime.InteropServices;
++System.Runtime.Loader.AssemblyLoadContext.Default.Resolving += (context, name) =>
++{
++    foreach (var folder in args.Skip(1).Append(Path.GetDirectoryName(Path.GetFullPath(args[0]))!))
++    {
++        var path = Path.Combine(folder, name.Name + ".dll");
++        if (File.Exists(path)) return context.LoadFromAssemblyPath(Path.GetFullPath(path));
++    }
++    return null;
++};
++var plugin = Assembly.LoadFrom(Path.GetFullPath(args[0]));
++var bridge = plugin.GetType("MegabonkTogether.Helpers.RoomCodeTools", true)!;
++var parse = bridge.GetMethod("ParseRoom", BindingFlags.Static | BindingFlags.NonPublic)!;
++string? Parse(string? text) => (string?)parse.Invoke(null, new object?[] { text });
++int tests = 0;
++void Check(bool condition, string name) { if (!condition) throw new Exception(name); tests++; }
++Check(Parse("+megabonk_together_room ABC123") == "ABC123", "normal invite");
++Check(Parse("game.exe +megabonk_together_room abc123 -windowed") == "ABC123", "launch args");
++foreach (var invalid in new string?[] { null, "", "ABC123", "+megabonk_together_room A", "+megabonk_together_room ../../bad", "+megabonk_together_room ABC123;bad", "x+megabonk_together_room ABC123", new string('x', 4097), "+megabonk_together_room " + new string('A',33) })
++    Check(Parse(invalid) == null, "invalid invite rejected");
++Check(plugin.GetType("MegabonkTogether.Helpers.SteamInviteBridge") == null, "native Steam bridge removed");
++Console.WriteLine($"{tests} room parser/removal checks passed. No Steam API calls made.");
