@@ -2,6 +2,10 @@
 
 A downloadable launcher that installs **Megabonk Together 5.1.0 (Proton)** and **BepInEx 6 build 752**. No terminal commands, sudo, password, or disabling SteamOS read-only mode needed.
 
+## Installer update — Steam VDF compatibility
+
+If the previous installer stopped with **Invalid Steam VDF**, download a fresh copy using the button below. This update handles UTF-8 byte-order markers, trailing NUL padding, comments, and conditional annotations on unrelated settings. It skips unrelated game manifests and reports the file and line on parsing errors. Do not delete or reset Steam settings.
+
 ## Download
 
 **[Download the Steam Deck installer](https://github.com/dexterlabs1/megabonk-deck/raw/refs/heads/main/Install-Megabonk-Together.desktop)**

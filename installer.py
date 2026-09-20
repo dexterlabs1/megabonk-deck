@@ -51,7 +51,33 @@ def atomic(path, data):
 
 
 # Parse KeyValues with source spans so only the intended scalar changes.
-TOKEN = re.compile(r'\s+|//[^\n]*|"(?:\\.|[^"\\])*"|[{}]|[^\s{}"]+')
+TOKEN = re.compile(r'\s+|//[^\n]*|/\*[\s\S]*?\*/|"(?:\\.|[^"\\])*"|[{}]|\[[^\]\r\n]*\]|[^\s{}"\[\]\x00\ufeff]+')
+
+
+class VDFError(ValueError):
+    pass
+
+
+def vdf_tokens(text, source):
+    # Keep original character offsets, including a UTF-8 BOM, for surgical edits.
+    pos = 1 if text.startswith('\ufeff') else 0
+    end = len(text.rstrip('\x00'))
+    result = []
+    while pos < end:
+        match = TOKEN.match(text, pos, end)
+        if match is None:
+            line = text.count('\n', 0, pos) + 1
+            raise VDFError(f'{source}, line {line}: unrecognized or unterminated VDF token')
+        raw = match.group()
+        if not raw.isspace() and not raw.startswith(('//', '/*')):
+            result.append((raw, pos, match.end()))
+        pos = match.end()
+    return result
+
+
+def read_vdf(path):
+    # Avoid universal-newline conversion: unrelated bytes must remain unchanged.
+    return path.read_bytes().decode('utf-8', errors='surrogateescape')
 
 
 def unquote(raw):
@@ -64,30 +90,40 @@ def quote(value):
     return '"' + value.replace('\\', '\\\\').replace('"', '\\"') + '"'
 
 
-def parse_vdf(text):
-    tokens = [(m.group(), m.start(), m.end()) for m in TOKEN.finditer(text)
-              if not m.group().isspace() and not m.group().startswith('//')]
+def parse_vdf(text, source='Steam settings'):
+    tokens = vdf_tokens(text, source)
+
+    def fail(message, offset):
+        line = text.count('\n', 0, offset) + 1
+        raise VDFError(f'{source}, line {line}: {message}')
+
     def block(i, nested=False):
         entries = []
         while i < len(tokens):
             key, start, end = tokens[i]
             if key == '}':
                 if not nested:
-                    raise ValueError('Unexpected VDF closing brace')
+                    fail('unexpected closing brace', start)
                 return entries, i + 1, start
-            if key == '{' or i + 1 >= len(tokens):
-                raise ValueError('Invalid Steam VDF')
+            if key == '{' or key.startswith('[') or i + 1 >= len(tokens):
+                fail('expected a key and value', start)
             value, vs, ve = tokens[i + 1]
             if value == '{':
                 children, i, close = block(i + 2, True)
-                entries.append(dict(key=unquote(key), children=children, close=close))
-            elif value == '}':
-                raise ValueError('Missing Steam VDF value')
+                node = dict(key=unquote(key), children=children, close=close)
+            elif value == '}' or value.startswith('['):
+                fail('missing value', vs)
             else:
-                entries.append(dict(key=unquote(key), value=unquote(value), start=vs, end=ve))
+                node = dict(key=unquote(key), value=unquote(value), start=vs, end=ve)
                 i += 2
+            # Preserve conditional annotations on unrelated data. Do not guess
+            # their meaning when selecting a setting that will be edited.
+            if i < len(tokens) and tokens[i][0].startswith('['):
+                node['condition'] = tokens[i][0]
+                i += 1
+            entries.append(node)
         if nested:
-            raise ValueError('Unclosed Steam VDF')
+            fail('unclosed section', len(text))
         return entries, i, len(text)
     return block(0)[0]
 
@@ -96,6 +132,8 @@ def entry(entries, key):
     matches = [x for x in entries if x['key'].lower() == key.lower()]
     if len(matches) > 1:
         raise ValueError('Duplicate Steam setting: ' + key)
+    if matches and 'condition' in matches[0]:
+        raise VDFError('Conditional Steam setting requires manual configuration: ' + key)
     return matches[0] if matches else None
 
 
@@ -121,8 +159,8 @@ def launch_options(old):
     return OVERRIDE + ' %command% ' + old
 
 
-def patch_localconfig(text, appid):
-    node = descend(parse_vdf(text), ['UserLocalConfigStore', 'Software', 'Valve', 'Steam', 'apps', appid])
+def patch_localconfig(text, appid, source="Steam settings"):
+    node = descend(parse_vdf(text, source), ['UserLocalConfigStore', 'Software', 'Valve', 'Steam', 'apps', appid])
     if node is None:
         return None
     option = entry(node['children'], 'LaunchOptions')
@@ -142,7 +180,7 @@ def discover(home):
         libraries = [root]
         vdf = root / 'steamapps/libraryfolders.vdf'
         if vdf.exists():
-            node = descend(parse_vdf(vdf.read_text()), ['libraryfolders'])
+            node = descend(parse_vdf(read_vdf(vdf), str(vdf)), ['libraryfolders'])
             if node:
                 for lib in node['children']:
                     if 'children' in lib:
@@ -151,7 +189,11 @@ def discover(home):
                             libraries.append(Path(p['value']))
         for lib in dict.fromkeys(libraries):
             for manifest in (lib / 'steamapps').glob('appmanifest_*.acf'):
-                node = descend(parse_vdf(manifest.read_text()), ['AppState'])
+                # A broken manifest for another game must not block this game.
+                manifest_text = read_vdf(manifest)
+                if not re.search(r'"name"\s+"Megabonk"', manifest_text, re.IGNORECASE):
+                    continue
+                node = descend(parse_vdf(manifest_text, str(manifest)), ['AppState'])
                 if not node:
                     continue
                 fields = {e['key'].lower(): e.get('value') for e in node['children']}
@@ -282,8 +324,8 @@ def main():
                 raise RuntimeError('Megabonk is still running. Close it and try again.')
             configs = []
             for config in (root / 'userdata').glob('*/config/localconfig.vdf'):
-                original = config.read_text()
-                updated = patch_localconfig(original, appid)
+                original = read_vdf(config)
+                updated = patch_localconfig(original, appid, str(config))
                 if updated is not None:
                     configs.append((config.resolve(), updated))
             if not configs:
@@ -304,7 +346,7 @@ def main():
                 for config, updated in configs:
                     if running('steam'):
                         raise RuntimeError('Steam reopened during installation; closing it is required.')
-                    tx.write(config, updated.encode())
+                    tx.write(config, updated.encode('utf-8', errors='surrogateescape'))
                 tx.write(marker, json.dumps({'version': VERSION, 'backup': str(backup)}, indent=2).encode())
             except BaseException:
                 tx.rollback()
