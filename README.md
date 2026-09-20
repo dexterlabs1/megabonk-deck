@@ -2,6 +2,31 @@
 
 A downloadable launcher that installs **Megabonk Together 5.1.0 (Proton)** and **BepInEx 6 build 752**. No terminal commands, sudo, password, or disabling SteamOS read-only mode needed.
 
+## Deck controls + Steam invites beta
+
+Already have Together 5.1.0 working? Close Megabonk, then open this updater in
+Desktop Mode. Steam can stay open.
+
+**[Download Deck beta update](https://github.com/dexterlabs1/megabonk-deck/raw/refs/heads/main/Update-Deck-Controls.desktop)** ·
+**[Download restore launcher](https://github.com/dexterlabs1/megabonk-deck/raw/refs/heads/main/Restore-Original-Multiplayer.desktop)**
+
+This replaces only the mod DLL and backs up the previous one. It adds controller
+menu navigation/focus, B to go back, text-entry helpers, visible menu cursor,
+Paste Code, session-only remembered room code, a short accidental-confirm guard,
+and experimental Steam invites. Host Friendlies, then select **Invite Friends**.
+A separate **Copy Code** button remains available. Both players need the beta for
+automatic invite-to-room handling; accepting an invite never interrupts a run.
+
+**Compiled and helper-tested, but not tested on a physical Deck or a live Steam
+invite session.** If an invite accepted while the game is running does not join,
+close the receiving game and accept again, or use the room code. The right trackpad
+still needs **Mouse** assigned in Steam Input; holding STEAM + right trackpad is a
+fallback. Hardware verification is needed before calling this stable.
+
+[Beta details and test limits](DECK-BETA.md) ·
+[Complete mod source](mod-source/megabonk-deck-beta1-source.zip) ·
+[Review the source patch](mod-source/deck-beta1.patch)
+
 ## Installer update — Steam VDF compatibility
 
 If the previous installer stopped with **Invalid Steam VDF**, download a fresh copy using the button below. This update handles UTF-8 byte-order markers, trailing NUL padding, comments, and conditional annotations on unrelated settings. It skips unrelated game manifests and reports the file and line on parsing errors. Do not delete or reset Steam settings.
