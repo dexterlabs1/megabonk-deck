@@ -124,8 +124,8 @@ fixtures; they do not control a real Deck or prove Gaming Mode compatibility.
 Delivery verification (2026-09-21): 87 tests passed in WSL; Windows passed 65 with
 22 Linux-only skips. This includes executing the actual JSON helper in a child
 process to install beta 5 and restore the original DLL under a temporary HOME.
-The official pairing library loads and LAN discovery runs, but no Deck has yet
-been discovered/paired. Native capture, virtual-controller recognition, game
+The official pairing library loads and LAN discovery finds the Deck. Pairing has
+not yet completed. Native capture, virtual-controller recognition, game
 navigation and reconnect after reboot remain unverified.
 
 To remove the workflow, stop input, remove the deployed `remote` helper directory

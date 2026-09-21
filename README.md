@@ -2,37 +2,25 @@
 
 A downloadable launcher that installs **Megabonk Together 5.1.0 (Proton)** and **BepInEx 6 build 752**. No terminal commands, sudo, password, or disabling SteamOS read-only mode needed.
 
-## Deck beta 5 test bundle
+## Install Deck beta 5
 
-**[Download the beta 5 test bundle](https://github.com/dexterlabs1/megabonk-deck/releases/download/deck-beta5/megabonk-deck-beta5-test.zip)**
+**[Download the one-file installer](https://github.com/dexterlabs1/megabonk-deck/releases/download/deck-beta5/Install-Megabonk-Deck-Beta5.desktop)** — 13 KB. Send this link to your friend. No ZIP extraction or separate update is needed.
 
 Beta 5 separates the manual room-code field from Paste Code, Join, and status text. Select the field, press **STEAM+X**, enter the host's code, then select **Join**. It retains the earlier hover-freeze and Together-button corrections. The updated layout and joining flow still need a physical Deck test.
 
-1. Close Megabonk and switch the Deck to Desktop Mode.
-2. Download and extract the **whole ZIP**, keeping its files together.
-3. If Together is already installed, open `Test-Deck-Beta5.desktop` from the extracted folder.
-4. For a friend's first installation, install Megabonk and launch it once, then close it. Run the included `Install-Megabonk-Together.desktop` first, then `Test-Deck-Beta5.desktop`. The first installer needs internet access and restarts Steam.
-5. Launch Megabonk and confirm the menu says **Deck beta 5**. Host a Friendlies room on one Deck; enter that room's code on the other.
+1. Install Megabonk through Steam and launch it once, then close it.
+2. In Desktop Mode, download and open **Install-Megabonk-Deck-Beta5.desktop**. Accept **Execute / Trust and Launch** if prompted, then confirm the installation.
+3. Return to Gaming Mode, launch Megabonk, and check for **Deck beta 5**. Both players use this same installer.
 
-The bundle upgrades earlier Deck betas and includes a restore launcher and matching source. [Test results and remaining validation](TEST-REPORT-2026-09-21.md). Host character confirmation requires at least two players in the lobby. Use the bundle's restore launcher for this beta. [Previous releases](https://github.com/dexterlabs1/megabonk-deck/releases).
+Internet is required. A fresh setup downloads about 34 MB and restarts Steam. Existing managed official/beta installations update only the multiplayer DLL and preserve the original backup. The launcher downloads the runtime files only; source and diagnostics are separate. Host character confirmation requires at least two players in the lobby.
 
-The older `Update-Deck-Controls.desktop` in the repository still installs beta 2. Use the ZIP above for current testing. Steam invites remain disabled; share the room code manually. The trackpad needs a Mouse binding in Steam Input.
+The [full test bundle](https://github.com/dexterlabs1/megabonk-deck/releases/download/deck-beta5/megabonk-deck-beta5-test.zip) remains available for offline updates, matching source, and **Restore-Official-Multiplayer.desktop**. [Test results and remaining validation](TEST-REPORT-2026-09-21.md). Steam invites remain disabled; share the room code manually. The trackpad needs a Mouse binding in Steam Input.
 
-## Installer update — Steam VDF compatibility
+## Original upstream-only installer
 
-If the previous installer stopped with **Invalid Steam VDF**, download a fresh copy using the button below. This update handles UTF-8 byte-order markers, trailing NUL padding, comments, and conditional annotations on unrelated settings. It skips unrelated game manifests and reports the file and line on parsing errors. Do not delete or reset Steam settings.
+The older `Install-Megabonk-Together.desktop` installs official Together 5.1.0 without the Deck beta fixes; `Update-Deck-Controls.desktop` installs beta 2. Use the one-file beta 5 installer above for current testing. The current installer retains the Steam VDF compatibility fixes; do not delete or reset Steam settings.
 
-## Download
-
-**[Download the Steam Deck installer](https://github.com/dexterlabs1/megabonk-deck/raw/refs/heads/main/Install-Megabonk-Together.desktop)**
-
-Share this repository with your buddy: https://github.com/dexterlabs1/megabonk-deck
-
-## Install on your Deck
-
-1. Install **Megabonk** in Steam and launch it once, then close the game.
-2. Switch to **Desktop Mode** (Steam > Power > Switch to Desktop).
-3. Download **Install-Megabonk-Together.desktop** from this repository using GitHub's **Download raw file** button. Open it in Dolphin, accept **Execute / Trust and Launch** if prompted, and click **Yes** in the installer.
+## Launching and troubleshooting
 
 If Dolphin opens it as text or won't launch it: right-click the file > Properties > Permissions > **Is executable**, then open it again. Steam will close and reopen during installation. Let the installer finish before reopening Steam yourself. An internet connection and about 500 MB of free space are recommended; backups on reruns need additional space.
 
@@ -51,7 +39,7 @@ If the mod does not load, choose **Proton Experimental** in Steam > Megabonk > P
 - Refuses an existing unmanaged BepInEx installation to avoid mixing loaders. Does not remove your existing mods to make room.
 - Installs the loader and plugin together. BepInEx generates its assemblies on launch before loading plugins. This combined installation flow is not hardware-validated here; upstream documents a loader-only first run.
 
-The `.desktop` file contains the compressed, self-contained `installer.py`; it does not fetch an executable installer script from a moving GitHub branch. `python3 build.py` regenerates it. Python 3 and the normal SteamOS `steam`, `pgrep`, and `zenity` commands are used. If Zenity is unavailable, the terminal asks for confirmation.
+The beta 5 `.desktop` file embeds the audited installer, updater and a small coordinator; it does not fetch executable installer code from a moving branch. `python3 friend-installer/build.py` regenerates it. Python 3 and the normal SteamOS commands are used. If Zenity is unavailable, the terminal asks for confirmation.
 
 ## Compatibility and limits
 
@@ -75,6 +63,8 @@ Save backups are separate and are **not** restored automatically, so uninstallin
 
 ## Development
 
+[Remote Deck workflow](remote/README.md): pair once, then transfer builds, capture screenshots, send virtual input, and collect logs through `deck.cmd`. Actual Deck acceptance is recorded separately from automated tests.
+
 ```bash
 python3 -m unittest discover -s tests -v
 python3 build.py
@@ -82,4 +72,4 @@ python3 build.py
 
 The real-archive integration check runs when `/tmp/megabonk-assets/bepinex.zip` and `mod.zip` are available; otherwise it explicitly skips. Other checks run offline. Download URLs and SHA-256 values are in `installer.py`.
 
-Credits: [DShad / Fcornaire's Megabonk Together](https://github.com/Fcornaire/megabonk-together), [BepInEx](https://github.com/BepInEx/BepInEx). This repository ships installer code only; upstream binaries are downloaded at install time and retain their own licenses.
+Credits: [DShad / Fcornaire's Megabonk Together](https://github.com/Fcornaire/megabonk-together), [BepInEx](https://github.com/BepInEx/BepInEx). Upstream dependencies are downloaded at install time. Deck beta binaries and their matching GPL source are available in Releases; upstream licenses remain applicable.

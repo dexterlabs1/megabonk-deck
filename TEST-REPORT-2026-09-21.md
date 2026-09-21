@@ -81,3 +81,11 @@ Beta 5 validation: Release build passed with 15 existing warnings and no errors;
 All 16 candidate integration tests and all 25 original installer tests passed using checksum-verified upstream fixtures. The [beta 5 download](https://github.com/dexterlabs1/megabonk-deck/releases/download/deck-beta5/megabonk-deck-beta5-test.zip) includes the unchanged original installer for the friend's first setup, followed by the beta updater, plus matching GPL source and restore launcher. Existing installations use only Test-Deck-Beta5.desktop. New installations need internet for the original installer.
 
 Remaining physical test: Together > Friendlies, select the visible code field, press STEAM+X, type a real host code, dismiss the keyboard, and select Join. Test two-player character confirmation and a short run. No successful native beta 5 entry or multiplayer session has been reported yet.
+
+## One-file friend installer and remote workflow
+
+The new 13,081-byte `Install-Megabonk-Deck-Beta5.desktop` embeds the audited original installer, beta 5 updater, and a coordinator. It downloads only the pinned runtime ZIP (187,542 bytes) plus upstream dependencies for fresh setups. There is one installation confirmation and no separate beta-update step. Existing published ZIPs are unchanged.
+
+Thirteen Linux integration tests passed with real archives, including execution of the exact Desktop launcher payload in a separate process from an unrelated working directory. They cover fresh setup, saves/backups, existing official and beta 4 upgrades, idempotence, restore, cancellation, corruption and concurrent installation changes.
+
+All 87 remote workflow tests passed in WSL; Windows passed 65 with 22 Linux-only skips. Tests cover SSH command construction and transfer failures, stale/incomplete screenshot rejection, process selection, virtual-input cleanup, and the actual helper subprocess installing beta 5 and restoring the original DLL under a temporary HOME. Pairing, actual Gaming Mode capture/input and reboot reconnection are tracked in [the remote workflow](remote/README.md).

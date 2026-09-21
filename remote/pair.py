@@ -7,6 +7,7 @@ import subprocess
 import sys
 import time
 import types
+import urllib.error
 
 
 def discover(seconds=8):
@@ -48,7 +49,11 @@ def main():
     parameters = types.SimpleNamespace(machine=args.host,
         machine_name_type=devkit_client.MachineNameType.ADDRESS, http_port=args.port)
     print('Approve this PC on the Deck now.', file=sys.stderr, flush=True)
-    response = devkit_client.register(parameters)
+    try:
+        response = devkit_client.register(parameters)
+    except urllib.error.HTTPError as error:
+        details = error.read(4096).decode('utf-8', errors='replace')
+        raise RuntimeError(f'Deck pairing returned HTTP {error.code}: {details}') from error
     _, key_path, _ = devkit_client.ensure_devkit_key()
     machine = devkit_client.resolve_machine(args.host,
         name_type=devkit_client.MachineNameType.ADDRESS, need_devkit1=False, http_port=args.port)
