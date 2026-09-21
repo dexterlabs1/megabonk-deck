@@ -29,6 +29,8 @@ python3 -m unittest discover -s tests -v
 dotnet build src/plugin/MegabonkTogether.Plugin.csproj -c Release
 dotnet run --project diagnostics/hover -- <candidate.dll> <beta2.dll>
 python diagnostics/menu/reproduce.py
+python remote/deck.py --help
+python -m unittest discover -s remote/tests -v
 ```
 
 Run the C# build inside extracted source with the environment flags above. The menu reproduction intentionally fails against beta 2. Read each diagnostic README for setup and limits. Candidate-specific builders/tests live in their candidate directories.
@@ -41,7 +43,10 @@ Run the C# build inside extracted source with the environment flags above. The m
 - Python urllib fixture downloads have stalled in this environment; `curl -4` retrieved the pinned files successfully. Always verify their expected SHA-256 before testing.
 - Preserve source line endings when patching archived code. Verify the incremental patch reproduces the source archive byte for byte.
 - Publish the tested bundle unchanged, then download it from the public release URL and verify its SHA-256.
+- Remote control uses `remote/deck.py`; read `remote/README.md`. Connection configuration and keys live outside Git, and `remote/runs/` is ignored. Do not equate a virtual gamepad test with physical Deck controls. Never remove installer backups when removing remote helpers.
 
 ## Current status
 
 Beta 3's host freeze correction worked for the user's hosting, Show Room Code, and character-selection test. Beta 4 targets Together navigation/size; a subsequent screenshot shows beta 4 on game 1.0.69 with the manual room field covered by Paste/Join/status. Beta 5 (`deck-beta5`) separates the Friendlies rows and wires manual input/focus. Its bundle includes the original installer for a friend's first setup. Automated checks and layout diagram review passed; physical beta 5 typing/joining, prior navigation changes, and extended multiplayer still need confirmation.
+
+The remote workflow is implemented under `remote/`: Valve pairing, SSH transfer/commands, Gaming Mode capture, virtual input, and unattended beta 5 deploy/restore. All 87 remote tests passed in WSL (65 passed on Windows, 22 Linux-only skips). Valve's headless pairing client is installed on this PC; no Deck was discovered or paired during delivery. Actual screenshot/input/reboot acceptance remains pending the one-time Deck pairing.
