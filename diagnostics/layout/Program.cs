@@ -1,0 +1,31 @@
+using Mono.Cecil;
+using Mono.Cecil.Cil;
+
+using var assembly=AssemblyDefinition.ReadAssembly(args[0]);
+var network=assembly.MainModule.Types.Single(t=>t.Name=="NetworkMenuTab");
+MethodDefinition Method(string name)=>network.Methods.Single(m=>m.Name==name);
+IEnumerable<MethodReference> Calls(MethodDefinition m)=>m.Body.Instructions.Where(i=>i.OpCode==OpCodes.Call||i.OpCode==OpCodes.Callvirt).Select(i=>(MethodReference)i.Operand);
+bool Call(MethodDefinition m,string name)=>Calls(m).Any(c=>c.Name==name);
+int count=0;
+void Check(bool value,string label){if(!value)throw new Exception(label);Console.WriteLine("PASS: "+label);count++;}
+var create=Method("CreateFriendliesUI");
+Check(Call(Method("OnUICreated"),"ApplyFriendliesLayout"),"production UI creation applies tested layout");
+Check(new[]{"set_targetGraphic","set_textViewport","set_textComponent","set_placeholder","set_caretWidth","set_customCaretColor"}.All(n=>Call(create,n)),"compiled input graphic, viewport, text, placeholder and caret initialization");
+var limit=create.Body.Instructions.Single(i=>i.Operand is MethodReference m && m.Name=="set_characterLimit");
+Check(limit.Previous.Operand is sbyte b && b==32,"compiled input limit is 32");
+var nested=network.NestedTypes.SelectMany(t=>t.Methods).Where(m=>m.HasBody).ToArray();
+Check(nested.Any(m=>Call(m,"Select")&&Call(m,"ActivateInputField")),"actual input proxy lambda selects and activates input");
+var proxy=Method("MakeInputNavigable");
+Check(Call(proxy,"OverrideStartHoverAction")&&Call(proxy,"OverrideEndHoverAction"),"managed input highlight callbacks wired");
+var utility=Method("CreateUtilityButton");
+Check(Call(utility,"set_button")&&Call(utility,"set_navigation"),"shared cloned control binds native Button and navigation");
+Check(new[]{"CreateFriendliesUI","CreateMatchButtons","CreateCloseButton","CreateStopButton"}.All(n=>Call(Method(n),"CreateUtilityButton")),"Friendlies and entry/exit controls use bound helper");
+var body=utility.Body.Instructions;
+Check(body.IndexOf(body.First(i=>i.Operand is MethodReference m&&m.Name=="set_button")) < body.IndexOf(body.Last(i=>i.Operand is MethodReference m&&m.Name=="DestroyImmediate")),"native clone reference bound before source component destroyed");
+var custom=assembly.MainModule.Types.Single(t=>t.Name=="CustomButton");
+foreach(var name in new[]{"StartHover","StopHover"}) Check(!Calls(custom.Methods.Single(m=>m.Name==name)).Any(m=>m.DeclaringType.Name is "MyButtonNormal" or "MyButton"),"no native virtual base call: "+name);
+Check(Method("get_PanelBackgroundColor").Body.Instructions.Any(i=>i.OpCode==OpCodes.Ldc_R4 && (float)i.Operand==1f),"opaque network panel compiled");
+var main=assembly.MainModule.Types.Single(t=>t.Name=="MainMenuPatches").Methods.Single(m=>m.Name=="Start_Postfix");
+Check(main.Body.Instructions.Any(i=>i.OpCode==OpCodes.Ldstr&&((string)i.Operand).Contains("Deck beta 5"))&&Call(main,"set_enableWordWrapping"),"beta5 label with explicit wrapping configuration compiled");
+Check(assembly.Name.Version.ToString()=="5.1.0.0","multiplayer assembly version unchanged");
+Console.WriteLine($"{count} compiled-IL checks passed. No native runtime executed.");

@@ -66,4 +66,18 @@ Verification: Release PROTON build passed with 15 existing warnings and no error
 
 All 14 Linux candidate integration tests pass, including beta 3 upgrades, the full beta 1 → 2 → 3 → 4 → official restore chain, rollback, and execution of the embedded launchers with filename and file-URI paths. The bundle includes matching GPL source and the beta 4 restore launcher. Published beta 3 artifacts are unchanged.
 
-Deck acceptance test: confirm the beta 4 label, move down to Together and back up repeatedly, compare its apparent size with the native menu, then host and exercise Show Room Code and character selection again. Confirm needs another player in the lobby. No physical beta 4 result has been reported yet.
+Deck acceptance test: confirm the beta 4 label, move down to Together and back up repeatedly, compare its apparent size with the native menu, then host and exercise Show Room Code and character selection again. Confirm needs another player in the lobby. The later screenshot below reports a layout issue; it does not confirm these navigation checks.
+
+## Beta 4 screenshot: room-code entry obstructed
+
+The user supplied a Deck photo showing the beta 4 label and game version 1.0.69. In Friendlies, Paste Code covers the manual-entry field and overlaps Join; status text also collides with that row. The photo does not establish whether the earlier joystick-navigation issue is resolved.
+
+The source explains the collision: with a 550-unit panel, input and Join use anchor Y 0.35 plus offset -20, placing their centers at -102.5 relative to the panel center. Paste is centered at -95. Status is centered at -110. Separate anchors obscure the fact that these controls share one row.
+
+Beta 5 separates the room-code field, keyboard hint, Paste/Join actions, status, and Back into measured rows, makes the Friendlies panel opaque, and explicitly wires the field's viewport and focus action. The prior hover and main-menu clone corrections remain. Root and Friendlies buttons share the bound clone helper; the separate netplay-options toggles remain outside this fix. A [source-derived layout diagram](diagnostics/layout/beta5-layout-diagram.png) was visually reviewed. It is not a native game render.
+
+Beta 5 validation: Release build passed with 15 existing warnings and no errors; 41 layout/input/control checks and five beta 4 negative controls passed. Thirteen compiled-IL checks, seven hover checks, and the prior 24 clone-setup assertions with nine beta 3 negative controls passed. The source archive retains all 299 members; only NetworkMenuTab.cs, MainMenu.cs, and DECK-BETA.md changed from beta 4.
+
+All 16 candidate integration tests and all 25 original installer tests passed using checksum-verified upstream fixtures. The [beta 5 download](https://github.com/dexterlabs1/megabonk-deck/releases/download/deck-beta5/megabonk-deck-beta5-test.zip) includes the unchanged original installer for the friend's first setup, followed by the beta updater, plus matching GPL source and restore launcher. Existing installations use only Test-Deck-Beta5.desktop. New installations need internet for the original installer.
+
+Remaining physical test: Together > Friendlies, select the visible code field, press STEAM+X, type a real host code, dismiss the keyboard, and select Join. Test two-player character confirmation and a short run. No successful native beta 5 entry or multiplayer session has been reported yet.

@@ -1,0 +1,652 @@
+Deck beta 4 -> Deck beta 5 candidate (incremental, not upstream-to-beta).
+Apply with git apply -p1 from the extracted beta 4 source root.
+
+--- a/DECK-BETA.md
++++ b/DECK-BETA.md
+@@ -1,17 +1,17 @@
+-# Deck beta 4 - main-menu controller navigation and button size candidate
++# Deck beta 5 - visible manual room-code entry
+ 
+-Beta 4 clones Together in the original Play button's local UI space, preserves
+-its geometry and native button fields, and resets only Together's Unity navigation
+-to automatic. It retains beta 3's removal of recursive native hover calls.
+-Protocol and assembly version remain 5.1.0.
++Beta 5 separates the Friendlies title, Host, room-code input, keyboard hint,
++Paste/Join buttons, status message and Back into non-overlapping rows. The panel
++is opaque. Select the room-code field with the mouse or controller A, then press
++STEAM+X to type. Paste is optional. Input now permits all 32 characters accepted
++by validation, and the text viewport/caret and native button references are explicit.
++The Together version label stays on one line. Protocol/assembly remain 5.1.0.
+ 
+-The user confirmed beta 3 no longer freezes while hosting, showing a room code,
+-or selecting a character. Beta 4 still needs a physical Deck check: move down to
+-Together and back up repeatedly, compare its size, then host and select a character.
+-A host needs a second player before Confirm becomes available.
++Beta 3's hover recursion correction and beta 4's main-menu navigation and sizing
++corrections are retained. A solo host still needs a second player to confirm.
+ 
+-Compilation, managed stub regressions and compiled-IL checks do not execute the
+-native Unity/IL2CPP runtime and cannot establish that the Deck issue is resolved.
++Layout/stub tests and compiled-IL checks do not execute native Unity/IL2CPP.
++Manual typing, controller focus and two-Deck multiplayer still need live testing.
+ 
+ ## Changes
+ 
+--- a/src/plugin/Patches/MainMenu.cs
++++ b/src/plugin/Patches/MainMenu.cs
+@@ -67,10 +67,13 @@
+             var tmpText = textWrapper.t_text;
+             var versionTmp = version.AddComponent<TMPro.TextMeshProUGUI>();
+             versionTmp.font = tmpText.font;
+-            versionTmp.fontSize = tmpText.fontSize * 0.45f;
++            versionTmp.fontSize = tmpText.fontSize * 0.35f;
++            versionTmp.enableWordWrapping = false;
++            versionTmp.raycastTarget = false;
++            versionTmp.rectTransform.sizeDelta = new UnityEngine.Vector2(300, 28);
+             versionTmp.alignment = tmpText.alignment;
+             versionTmp.color = tmpText.color;
+-            versionTmp.text = $"v{MyPluginInfo.PLUGIN_VERSION} Deck beta 4";
++            versionTmp.text = $"v{MyPluginInfo.PLUGIN_VERSION} Deck beta 5";
+ 
+ 
+             var navigationWindow = go.GetComponentInParent<Window>();
+--- a/src/plugin/Scripts/Modal/NetworkMenuTab.cs
++++ b/src/plugin/Scripts/Modal/NetworkMenuTab.cs
+@@ -25,6 +25,9 @@
+                 return netplayOptionsBackButton;
+             }
+         }
++        protected override Color PanelBackgroundColor => new Color(0.1f, 0.1f, 0.1f, 1f);
++        private GameObject codeKeyboardHint;
++        private GameObject controlHints;
+         private static string lastRoom = "";
+         private CustomButton pasteButton;
+         private CustomButton randomButton;
+@@ -87,7 +90,7 @@
+             MakeInputNavigable(playerNameInput);
+             MakeInputNavigable(codeInput);
+             codeInput.text = lastRoom;
+-            pasteButton = CreateUtilityButton("Paste Code", new Vector2(0, -95), () =>
++            pasteButton = CreateUtilityButton("Paste Code", new Vector2(-145, -80), () =>
+             {
+                 try
+                 {
+@@ -102,6 +105,7 @@
+             });
+             pasteButton.gameObject.SetActive(false);
+             var hints = new GameObject("DeckControlHints");
++            controlHints = hints;
+             hints.transform.SetParent(panel.transform, false);
+             var hintRect = hints.AddComponent<RectTransform>();
+             hintRect.anchoredPosition = new Vector2(0, -255);
+@@ -111,6 +115,7 @@
+             hintText.fontSize = 20;
+             hintText.alignment = TextAlignmentOptions.Center;
+             hintText.raycastTarget = false;
++            ApplyFriendliesLayout();
+         }
+ 
+         private static bool IsValidRoom(string room) =>
+@@ -118,23 +123,35 @@
+ 
+         private CustomButton CreateUtilityButton(string title, Vector2 position, System.Action action)
+         {
+-            var go = GameObject.Instantiate(mainMenu.btnPlay.gameObject);
+-            go.transform.SetParent(panel.transform, false);
++            var go = GameObject.Instantiate(mainMenu.btnPlay.gameObject, panel.transform, false);
+             var original = go.GetComponent<MyButtonNormal>();
+-            if (original != null) DestroyImmediate(original);
+             var localized = go.GetComponentInChildren<LocalizeStringEvent>();
+             if (localized != null) DestroyImmediate(localized);
+             var uiButton = go.GetComponentInChildren<UnityEngine.UI.Button>();
+             if (uiButton != null) uiButton.onClick = new();
+             var button = go.AddComponent<CustomButton>();
++            // Bind the native navigation/visual fields before destroying the template.
++            button.button = uiButton;
++            if (uiButton != null) uiButton.navigation = Navigation.defaultNavigation;
++            if (original != null)
++            {
++                button.background = original.background;
++                button.defaultColor = original.defaultColor;
++                button.hoverColor = original.hoverColor;
++                button.colorInited = original.colorInited;
++                button.disabledOverlay = original.disabledOverlay;
++                button.customSfx = original.customSfx;
++                button.state = original.state;
++                button.scaleOnHover = original.scaleOnHover;
++                button.hoverScale = original.hoverScale;
++                DestroyImmediate(original);
++            }
+             button.SetOnClickAction(action);
+             var label = go.GetComponent<ButtonTextWrapper>().t_text;
+             label.text = title;
+             label.fontSize = 28;
+-            var rect = go.GetComponent<RectTransform>();
+-            rect.anchorMin = rect.anchorMax = rect.pivot = new Vector2(0.5f, 0.5f);
+-            rect.anchoredPosition = position;
+-            rect.sizeDelta = new Vector2(260, 50);
++            label.enableWordWrapping = false;
++            SetLayout(go, position.x, position.y, 260, 54);
+             button.SetInteractable(true);
+             return button;
+         }
+@@ -156,50 +173,21 @@
+             var uiButton = proxyObject.AddComponent<UnityEngine.UI.Button>();
+             uiButton.targetGraphic = highlight;
+             var proxy = proxyObject.AddComponent<CustomButton>();
++            uiButton.navigation = Navigation.defaultNavigation;
+             proxy.button = uiButton;
+             proxy.background = highlight;
+             proxy.defaultColor = new Color(0, 0, 0, 0);
+             proxy.hoverColor = new Color(0.3f, 0.5f, 0.7f, 0.3f);
+-            proxy.SetOnClickAction(() => { input.ActivateInputField(); });
++            proxy.SetOnClickAction(() => { input.Select(); input.ActivateInputField(); });
++            proxy.OverrideStartHoverAction(() => { highlight.color = proxy.hoverColor; });
++            proxy.OverrideEndHoverAction(() => { highlight.color = proxy.defaultColor; });
+             proxy.SetInteractable(true);
+         }
+ 
+         private void CreateCloseButton()
+         {
+-            var buttonObj = GameObject.Instantiate(mainMenu.btnPlay.gameObject);
+-            buttonObj.transform.SetParent(panel.transform, false);
+-
+-            var originalButton = buttonObj.GetComponent<MyButtonNormal>();
+-            if (originalButton != null)
+-            {
+-                UnityEngine.Object.DestroyImmediate(originalButton);
+-            }
+-
+-            UnityEngine.UI.Button button = buttonObj.GetComponentInChildren<UnityEngine.UI.Button>();
+-            if (button != null)
+-            {
+-                button.onClick = new();
+-            }
+-
+-            var localizeStringEvent = buttonObj.GetComponentInChildren<LocalizeStringEvent>();
+-            if (localizeStringEvent != null)
+-            {
+-                UnityEngine.Object.DestroyImmediate(localizeStringEvent);
+-            }
+-
+-            closeButton = buttonObj.AddComponent<CustomButton>();
+-            closeButton.SetOnClickAction(OnCloseClicked);
+-
+-            var textWrapper = buttonObj.GetComponent<ButtonTextWrapper>();
+-            textWrapper.t_text.text = "Close";
+-            textWrapper.t_text.fontSize = 36;
+-
+-            var rectTransform = buttonObj.GetComponent<RectTransform>();
+-            rectTransform.anchorMin = new Vector2(0.5f, 0.5f);
+-            rectTransform.anchorMax = new Vector2(0.5f, 0.5f);
+-            rectTransform.pivot = new Vector2(0.5f, 0.5f);
+-            rectTransform.anchoredPosition = new Vector2(0, -200f);
+-            rectTransform.sizeDelta = new Vector2(300, 70);
++            closeButton = CreateUtilityButton("Close", new Vector2(0, -200), OnCloseClicked);
++            SetLayout(closeButton.gameObject, 0, -200, 300, 70);
+         }
+ 
+         private void CreatePlayerNameInput()
+@@ -543,329 +531,117 @@
+ 
+         private void CreateStopButton()
+         {
+-            var buttonObj = GameObject.Instantiate(mainMenu.btnPlay.gameObject);
+-            buttonObj.transform.SetParent(panel.transform, false);
+-
+-            var originalButton = buttonObj.GetComponent<MyButtonNormal>();
+-            if (originalButton != null)
+-            {
+-                UnityEngine.Object.DestroyImmediate(originalButton);
+-            }
+-
+-            UnityEngine.UI.Button button = buttonObj.GetComponentInChildren<UnityEngine.UI.Button>();
+-            if (button != null)
+-            {
+-                button.onClick = new();
+-            }
+-
+-            var localizeStringEvent = buttonObj.GetComponentInChildren<LocalizeStringEvent>();
+-            if (localizeStringEvent != null)
+-            {
+-                UnityEngine.Object.DestroyImmediate(localizeStringEvent);
+-            }
+-
+-            stopButton = buttonObj.AddComponent<CustomButton>();
+-            stopButton.SetOnClickAction(OnStopClicked);
+-
+-            var textWrapper = buttonObj.GetComponent<ButtonTextWrapper>();
+-            textWrapper.t_text.fontSize = 36;
+-
+-            var rectTransform = buttonObj.GetComponent<RectTransform>();
+-            rectTransform.anchorMin = new Vector2(0.5f, 0.5f);
+-            rectTransform.anchorMax = new Vector2(0.5f, 0.5f);
+-            rectTransform.pivot = new Vector2(0.5f, 0.5f);
+-            rectTransform.anchoredPosition = new Vector2(0, -220f);
+-            rectTransform.sizeDelta = new Vector2(300, 70);
+-
++            stopButton = CreateUtilityButton("Stop", new Vector2(0, -220), OnStopClicked);
++            SetLayout(stopButton.gameObject, 0, -220, 300, 70);
+             stopButton.gameObject.SetActive(false);
+         }
+ 
+         private void CreateMatchButtons()
+         {
+-            var randomButtonObj = GameObject.Instantiate(mainMenu.btnPlay.gameObject);
+-            randomButtonObj.transform.SetParent(panel.transform, false);
+-
+-            var originalRandomButton = randomButtonObj.GetComponent<MyButtonNormal>();
+-            if (originalRandomButton != null)
+-            {
+-                UnityEngine.Object.DestroyImmediate(originalRandomButton);
+-            }
+-
+-            UnityEngine.UI.Button button = randomButtonObj.GetComponentInChildren<UnityEngine.UI.Button>();
+-            if (button != null)
+-            {
+-                button.onClick = new();
+-            }
+-
+-            var localizeStringEvent = randomButtonObj.GetComponentInChildren<LocalizeStringEvent>();
+-            if (localizeStringEvent != null)
+-            {
+-                UnityEngine.Object.DestroyImmediate(localizeStringEvent);
+-            }
+-
+-            randomButton = randomButtonObj.AddComponent<CustomButton>();
+-            randomButton.SetOnClickAction(OnRandomClicked);
+-
+-            var randomTextWrapper = randomButtonObj.GetComponent<ButtonTextWrapper>();
+-            randomTextWrapper.t_text.text = "Random";
+-            randomTextWrapper.t_text.fontSize = 36;
+-
+-            var randomRectTransform = randomButtonObj.GetComponent<RectTransform>();
+-            randomRectTransform.anchorMin = new Vector2(0.5f, 0.5f);
+-            randomRectTransform.anchorMax = new Vector2(0.5f, 0.5f);
+-            randomRectTransform.pivot = new Vector2(0.5f, 0.5f);
+-            randomRectTransform.anchoredPosition = new Vector2(-180f, -100f);
+-            randomRectTransform.sizeDelta = new Vector2(300, 70);
+-
+-            var friendliesButtonObj = GameObject.Instantiate(mainMenu.btnPlay.gameObject);
+-            friendliesButtonObj.transform.SetParent(panel.transform, false);
+-
+-            var originalFriendliesButton = friendliesButtonObj.GetComponent<MyButtonNormal>();
+-            if (originalFriendliesButton != null)
+-            {
+-                UnityEngine.Object.DestroyImmediate(originalFriendliesButton);
+-            }
+-
+-            UnityEngine.UI.Button butt = friendliesButtonObj.GetComponentInChildren<UnityEngine.UI.Button>();
+-            if (butt != null)
+-            {
+-                butt.onClick = new();
+-            }
+-
+-            var localizeStringEventFriendlies = friendliesButtonObj.GetComponentInChildren<LocalizeStringEvent>();
+-            if (localizeStringEventFriendlies != null)
+-            {
+-                UnityEngine.Object.DestroyImmediate(localizeStringEventFriendlies);
+-            }
+-
+-            friendliesButton = friendliesButtonObj.AddComponent<CustomButton>();
+-            friendliesButton.SetOnClickAction(OnFriendliesClicked);
+-
+-            var friendliesTextWrapper = friendliesButtonObj.GetComponent<ButtonTextWrapper>();
+-            friendliesTextWrapper.t_text.text = "Friendlies";
+-            friendliesTextWrapper.t_text.fontSize = 36;
+-
+-            var friendliesRectTransform = friendliesButtonObj.GetComponent<RectTransform>();
+-            friendliesRectTransform.anchorMin = new Vector2(0.5f, 0.5f);
+-            friendliesRectTransform.anchorMax = new Vector2(0.5f, 0.5f);
+-            friendliesRectTransform.pivot = new Vector2(0.5f, 0.5f);
+-            friendliesRectTransform.anchoredPosition = new Vector2(180f, -100f);
+-            friendliesRectTransform.sizeDelta = new Vector2(300, 70);
+-
+-            var optionsButtonObj = GameObject.Instantiate(mainMenu.btnPlay.gameObject);
+-            optionsButtonObj.transform.SetParent(panel.transform, false);
+-
+-            var originalOptionsButton = optionsButtonObj.GetComponent<MyButtonNormal>();
+-            if (originalOptionsButton != null)
+-            {
+-                UnityEngine.Object.DestroyImmediate(originalOptionsButton);
+-            }
+-
+-            UnityEngine.UI.Button optBtn = optionsButtonObj.GetComponentInChildren<UnityEngine.UI.Button>();
+-            if (optBtn != null)
+-            {
+-                optBtn.onClick = new();
+-            }
+-
+-            var localizeStringEventOptions = optionsButtonObj.GetComponentInChildren<LocalizeStringEvent>();
+-            if (localizeStringEventOptions != null)
+-            {
+-                UnityEngine.Object.DestroyImmediate(localizeStringEventOptions);
+-            }
+-
+-            netplayOptionsButton = optionsButtonObj.AddComponent<CustomButton>();
+-            netplayOptionsButton.SetOnClickAction(OnNetplayOptionsClicked);
+-
+-            var optionsTextWrapper = optionsButtonObj.GetComponent<ButtonTextWrapper>();
+-            optionsTextWrapper.t_text.text = "Netplay Options";
+-            optionsTextWrapper.t_text.fontSize = 30;
+-
+-            var optionsRectTransform = optionsButtonObj.GetComponent<RectTransform>();
+-            optionsRectTransform.anchorMin = new Vector2(0.5f, 0.5f);
+-            optionsRectTransform.anchorMax = new Vector2(0.5f, 0.5f);
+-            optionsRectTransform.pivot = new Vector2(0.5f, 0.5f);
+-            optionsRectTransform.anchoredPosition = new Vector2(0, -10f);
+-            optionsRectTransform.sizeDelta = new Vector2(300, 70);
++            randomButton = CreateUtilityButton("Random", new Vector2(-180, -100), OnRandomClicked);
++            friendliesButton = CreateUtilityButton("Friendlies", new Vector2(180, -100), OnFriendliesClicked);
++            netplayOptionsButton = CreateUtilityButton("Netplay Options", new Vector2(0, -10), OnNetplayOptionsClicked);
++            SetLayout(randomButton.gameObject, -180, -100, 300, 70);
++            SetLayout(friendliesButton.gameObject, 180, -100, 300, 70);
++            SetLayout(netplayOptionsButton.gameObject, 0, -10, 300, 70);
+         }
+ 
+         private void CreateFriendliesUI()
+         {
+-            friendliesTitle = new GameObject("FriendliesTitle");
+-            friendliesTitle.transform.SetParent(panel.transform, false);
+-
+-            var titleRect = friendliesTitle.AddComponent<RectTransform>();
+-            titleRect.anchorMin = new Vector2(0.5f, 0.85f);
+-            titleRect.anchorMax = new Vector2(0.5f, 0.85f);
+-            titleRect.pivot = new Vector2(0.5f, 0.5f);
+-            titleRect.anchoredPosition = Vector2.zero;
+-            titleRect.sizeDelta = new Vector2(400, 60);
+-
+-            var titleText = friendliesTitle.AddComponent<TextMeshProUGUI>();
+-            titleText.text = "Friendlies";
+-            titleText.alignment = TextAlignmentOptions.Center;
+-            titleText.fontSize = 60;
+-            titleText.color = Color.white;
+-
+-            friendliesTitle.SetActive(false);
+-
+-            var hostButtonObj = GameObject.Instantiate(mainMenu.btnPlay.gameObject);
+-            hostButtonObj.transform.SetParent(panel.transform, false);
+-
+-            var originalHostButton = hostButtonObj.GetComponent<MyButtonNormal>();
+-            if (originalHostButton != null)
+-            {
+-                UnityEngine.Object.DestroyImmediate(originalHostButton);
+-            }
+-
+-            UnityEngine.UI.Button button = hostButtonObj.GetComponentInChildren<UnityEngine.UI.Button>();
+-            if (button != null)
+-            {
+-                button.onClick = new();
+-            }
+-
+-            var localizeStringEvent = hostButtonObj.GetComponentInChildren<LocalizeStringEvent>();
+-            if (localizeStringEvent != null)
+-            {
+-                UnityEngine.Object.DestroyImmediate(localizeStringEvent);
+-            }
+-
+-            hostButton = hostButtonObj.AddComponent<CustomButton>();
+-            hostButton.SetOnClickAction(OnHostClicked);
+-
+-            var hostTextWrapper = hostButtonObj.GetComponent<ButtonTextWrapper>();
+-            hostTextWrapper.t_text.text = "Host";
+-            hostTextWrapper.t_text.fontSize = 36;
+-
+-            var hostRectTransform = hostButtonObj.GetComponent<RectTransform>();
+-            hostRectTransform.anchorMin = new Vector2(0.5f, 0.5f);
+-            hostRectTransform.anchorMax = new Vector2(0.5f, 0.5f);
+-            hostRectTransform.pivot = new Vector2(0.5f, 0.5f);
+-            hostRectTransform.anchoredPosition = new Vector2(0, 50f);
+-            hostRectTransform.sizeDelta = new Vector2(300, 70);
+-
++            friendliesTitle = CreateFriendliesLabel("FriendliesTitle", "Friendlies", 50);
++            hostButton = CreateUtilityButton("Host", Vector2.zero, OnHostClicked);
+             hostButton.gameObject.SetActive(false);
+-
+-            codeLabel = new GameObject("CodeLabel");
+-            codeLabel.transform.SetParent(panel.transform, false);
+-
+-            var codeLabelRect = codeLabel.AddComponent<RectTransform>();
+-            codeLabelRect.anchorMin = new Vector2(0.5f, 0.4f);
+-            codeLabelRect.anchorMax = new Vector2(0.5f, 0.4f);
+-            codeLabelRect.pivot = new Vector2(0.5f, 0.5f);
+-            codeLabelRect.anchoredPosition = new Vector2(0, 25);
+-            codeLabelRect.sizeDelta = new Vector2(300, 40);
+-
+-            var codeLabelText = codeLabel.AddComponent<TextMeshProUGUI>();
+-            codeLabelText.text = "Room Code:";
+-            codeLabelText.alignment = TextAlignmentOptions.Center;
+-            codeLabelText.fontSize = 40;
+-            codeLabelText.color = Color.white;
+-
+-            codeLabel.SetActive(false);
++            codeLabel = CreateFriendliesLabel("CodeLabel", "Room Code", 28);
++            codeKeyboardHint = CreateFriendliesLabel("CodeKeyboardHint",
++                "Select the field, then press STEAM+X to type", 20);
+ 
+             var codeInputObj = new GameObject("CodeInput");
+             codeInputObj.transform.SetParent(panel.transform, false);
+-
+-            var codeInputRect = codeInputObj.AddComponent<RectTransform>();
+-            codeInputRect.anchorMin = new Vector2(0.5f, 0.35f);
+-            codeInputRect.anchorMax = new Vector2(0.5f, 0.35f);
+-            codeInputRect.pivot = new Vector2(0.5f, 0.5f);
+-            codeInputRect.anchoredPosition = new Vector2(-80f, -20f);
+-            codeInputRect.sizeDelta = new Vector2(250, 50);
+-
++            codeInputObj.AddComponent<RectTransform>();
+             var codeInputImage = codeInputObj.AddComponent<Image>();
+-            codeInputImage.color = new Color(0.2f, 0.2f, 0.2f, 1f);
++            codeInputImage.color = new Color(0.24f, 0.24f, 0.28f, 1f);
++            codeInputImage.raycastTarget = true;
++
++            var viewportObj = new GameObject("TextViewport");
++            viewportObj.transform.SetParent(codeInputObj.transform, false);
++            var viewport = viewportObj.AddComponent<RectTransform>();
++            viewport.anchorMin = Vector2.zero;
++            viewport.anchorMax = Vector2.one;
++            viewport.sizeDelta = new Vector2(-24, -8);
++            viewport.anchoredPosition = Vector2.zero;
++            viewportObj.AddComponent<RectMask2D>();
+ 
+             codeInput = codeInputObj.AddComponent<TMP_InputField>();
+-            codeInput.textComponent = CreateCodeInputText(codeInputObj);
+-            codeInput.placeholder = CreateCodePlaceholderText(codeInputObj);
+-            codeInput.characterLimit = 10;
+-
++            codeInput.targetGraphic = codeInputImage;
++            codeInput.textViewport = viewport;
++            codeInput.textComponent = CreateCodeInputText(viewportObj);
++            codeInput.placeholder = CreateCodePlaceholderText(viewportObj);
++            codeInput.characterLimit = 32;
++            codeInput.lineType = TMP_InputField.LineType.SingleLine;
+             codeInput.caretWidth = 3;
+             codeInput.caretColor = Color.white;
+             codeInput.customCaretColor = true;
+             codeInput.caretBlinkRate = 0.85f;
+-
+             codeInput.selectionColor = new Color(0.65f, 0.8f, 1f, 0.5f);
+-
+             codeInput.enabled = false;
+             codeInput.enabled = true;
+-
+             codeInput.gameObject.SetActive(false);
+ 
+-            var joinButtonObj = GameObject.Instantiate(mainMenu.btnPlay.gameObject);
+-            joinButtonObj.transform.SetParent(panel.transform, false);
+-
+-            var originalJoinButton = joinButtonObj.GetComponent<MyButtonNormal>();
+-            if (originalJoinButton != null)
+-            {
+-                UnityEngine.Object.DestroyImmediate(originalJoinButton);
+-            }
+-
+-            UnityEngine.UI.Button butt = joinButtonObj.GetComponentInChildren<UnityEngine.UI.Button>();
+-            if (butt != null)
+-            {
+-                butt.onClick = new();
+-            }
+-
+-            var localizeStringEventJoin = joinButtonObj.GetComponentInChildren<LocalizeStringEvent>();
+-            if (localizeStringEventJoin != null)
+-            {
+-                UnityEngine.Object.DestroyImmediate(localizeStringEventJoin);
+-            }
+-
+-            joinButton = joinButtonObj.AddComponent<CustomButton>();
+-            joinButton.SetOnClickAction(OnJoinClicked);
+-
+-            var joinTextWrapper = joinButtonObj.GetComponent<ButtonTextWrapper>();
+-            joinTextWrapper.t_text.text = "Join";
+-            joinTextWrapper.t_text.fontSize = 36;
+-
+-            var joinRectTransform = joinButtonObj.GetComponent<RectTransform>();
+-            joinRectTransform.anchorMin = new Vector2(0.5f, 0.35f);
+-            joinRectTransform.anchorMax = new Vector2(0.5f, 0.35f);
+-            joinRectTransform.pivot = new Vector2(0.5f, 0.5f);
+-            joinRectTransform.anchoredPosition = new Vector2(140f, -20f);
+-            joinRectTransform.sizeDelta = new Vector2(150, 50);
+-
++            joinButton = CreateUtilityButton("Join", Vector2.zero, OnJoinClicked);
+             joinButton.gameObject.SetActive(false);
+-
+-            var backButtonObj = GameObject.Instantiate(mainMenu.btnPlay.gameObject);
+-            backButtonObj.transform.SetParent(panel.transform, false);
+-
+-            var originalBackButton = backButtonObj.GetComponent<MyButtonNormal>();
+-            if (originalBackButton != null)
+-            {
+-                UnityEngine.Object.DestroyImmediate(originalBackButton);
+-            }
+-
+-            UnityEngine.UI.Button backButton = backButtonObj.GetComponentInChildren<UnityEngine.UI.Button>();
+-            if (backButton != null)
+-            {
+-                backButton.onClick = new();
+-            }
+-
+-            var localizeStringEventBack = backButtonObj.GetComponentInChildren<LocalizeStringEvent>();
+-            if (localizeStringEventBack != null)
+-            {
+-                UnityEngine.Object.DestroyImmediate(localizeStringEventBack);
+-            }
+-
+-            friendliesBackButton = backButtonObj.AddComponent<CustomButton>();
+-            friendliesBackButton.SetOnClickAction(OnFriendliesBackClicked);
+-
+-            var backTextWrapper = backButtonObj.GetComponent<ButtonTextWrapper>();
+-            backTextWrapper.t_text.text = "Back";
+-            backTextWrapper.t_text.fontSize = 36;
+-
+-            var backRectTransform = backButtonObj.GetComponent<RectTransform>();
+-            backRectTransform.anchorMin = new Vector2(0.5f, 0.5f);
+-            backRectTransform.anchorMax = new Vector2(0.5f, 0.5f);
+-            backRectTransform.pivot = new Vector2(0.5f, 0.5f);
+-            backRectTransform.anchoredPosition = new Vector2(0, -200f);
+-            backRectTransform.sizeDelta = new Vector2(300, 70);
+-
++            friendliesBackButton = CreateUtilityButton("Back", Vector2.zero, OnFriendliesBackClicked);
+             friendliesBackButton.gameObject.SetActive(false);
++        }
++
++        private GameObject CreateFriendliesLabel(string name, string title, float fontSize)
++        {
++            var go = new GameObject(name);
++            go.transform.SetParent(panel.transform, false);
++            go.AddComponent<RectTransform>();
++            var text = go.AddComponent<TextMeshProUGUI>();
++            text.text = title;
++            text.fontSize = fontSize;
++            text.alignment = TextAlignmentOptions.Center;
++            text.color = Color.white;
++            text.raycastTarget = false;
++            text.enableWordWrapping = false;
++            go.SetActive(false);
++            return go;
++        }
++
++        private static void SetLayout(GameObject go, float x, float y, float width, float height)
++        {
++            var rect = go.GetComponent<RectTransform>();
++            rect.anchorMin = rect.anchorMax = rect.pivot = new Vector2(0.5f, 0.5f);
++            rect.localScale = Vector3.one;
++            rect.localRotation = Quaternion.identity;
++            rect.anchoredPosition = new Vector2(x, y);
++            rect.sizeDelta = new Vector2(width, height);
++        }
++
++        private void ApplyFriendliesLayout()
++        {
++            // All rows use the same panel-centred coordinates, including status.
++            SetLayout(friendliesTitle, 0, 215, 600, 60);
++            SetLayout(hostButton.gameObject, 0, 140, 300, 58);
++            SetLayout(codeLabel, 0, 80, 560, 32);
++            SetLayout(codeInput.gameObject, 0, 25, 560, 54);
++            SetLayout(codeKeyboardHint, 0, -25, 620, 24);
++            SetLayout(pasteButton.gameObject, -145, -80, 250, 54);
++            SetLayout(joinButton.gameObject, 145, -80, 250, 54);
++            SetLayout(statusText.gameObject, 0, -143, 620, 58);
++            SetLayout(friendliesBackButton.gameObject, 0, -205, 300, 54);
++            SetLayout(controlHints, 0, -254, 650, 20);
++            statusText.fontSize = 24;
++            statusText.enableAutoSizing = true;
++            statusText.fontSizeMin = 18;
++            statusText.fontSizeMax = 24;
++            statusText.raycastTarget = false;
++            statusText.overflowMode = TextOverflowModes.Ellipsis;
++            var hints = controlHints.GetComponent<TextMeshProUGUI>();
++            hints.text = "Stick: move   A: select   B: back   STEAM+X: keyboard";
++            hints.fontSize = 20;
++            hints.enableWordWrapping = false;
+         }
+ 
+         private TextMeshProUGUI CreateCodeInputText(GameObject parent)
+@@ -886,6 +662,7 @@
+             text.color = Color.white;
+             text.margin = new Vector4(10, 0, 10, 0);
+ 
++            text.raycastTarget = false;
+             return text;
+         }
+ 
+@@ -901,13 +678,14 @@
+             rectTransform.anchoredPosition = Vector2.zero;
+ 
+             var text = placeholderObj.AddComponent<TextMeshProUGUI>();
+-            text.text = "Enter code...";
++            text.text = "Select to enter room code...";
+             text.alignment = TextAlignmentOptions.Center;
+             text.verticalAlignment = VerticalAlignmentOptions.Middle;
+             text.fontSize = 22;
+             text.color = new Color(1f, 1f, 1f, 0.3f);
+             text.margin = new Vector4(10, 0, 10, 0);
+ 
++            text.raycastTarget = false;
+             return text;
+         }
+ 
+@@ -1002,7 +780,7 @@
+             var code = codeInput.text.Trim().ToUpperInvariant();
+             if (!IsValidRoom(code))
+             {
+-                SetStatusText("Enter a room code (4–32 letters or numbers).");
++                SetStatusText("Enter a room code (4Ã¢â‚¬â€œ32 letters or numbers).");
+                 return;
+             }
+ 
+@@ -1024,6 +802,7 @@
+             AudioManager.Instance.PlaySfx(AudioManager.Instance.uiSelect.sounds[0]);
+ 
+             UpdateFriendliesUI(false);
++            SetStatusText("");
+             UpdateModalContents(true);
+         }
+ 
+@@ -1081,6 +860,7 @@
+             friendliesTitle.SetActive(isVisible);
+             hostButton.gameObject.SetActive(isVisible);
+             codeLabel.SetActive(isVisible);
++            codeKeyboardHint.SetActive(isVisible);
+             codeInput.gameObject.SetActive(isVisible);
+             joinButton.gameObject.SetActive(isVisible);
+             friendliesBackButton.gameObject.SetActive(isVisible);

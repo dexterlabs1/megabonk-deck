@@ -2,42 +2,21 @@
 
 A downloadable launcher that installs **Megabonk Together 5.1.0 (Proton)** and **BepInEx 6 build 752**. No terminal commands, sudo, password, or disabling SteamOS read-only mode needed.
 
-## Deck beta 4 test candidate
+## Deck beta 5 test bundle
 
-**[Download the beta 4 test bundle](https://github.com/dexterlabs1/megabonk-deck/releases/download/deck-beta4/megabonk-deck-beta4-test.zip)**
+**[Download the beta 5 test bundle](https://github.com/dexterlabs1/megabonk-deck/releases/download/deck-beta5/megabonk-deck-beta5-test.zip)**
 
-Beta 4 targets joystick focus getting stuck on Together and the oversized main-menu button. It preserves the button's native references and menu scale. It retains beta 3's hover-recursion correction; the user reported that hosting, showing the room code, and selecting a character no longer froze with beta 3. **Beta 4 controller navigation and appearance still need a physical Deck test.**
+Beta 5 separates the manual room-code field from Paste Code, Join, and status text. Select the field, press **STEAM+X**, enter the host's code, then select **Join**. It retains the earlier hover-freeze and Together-button corrections. The updated layout and joining flow still need a physical Deck test.
 
 1. Close Megabonk and switch the Deck to Desktop Mode.
 2. Download and extract the **whole ZIP**, keeping its files together.
-3. Open `Test-Deck-Beta4.desktop` from the extracted folder.
-4. Launch Megabonk, confirm the menu says **Deck beta 4**, and try moving the joystick down to Together and back up before hosting.
+3. If Together is already installed, open `Test-Deck-Beta5.desktop` from the extracted folder.
+4. For a friend's first installation, install Megabonk and launch it once, then close it. Run the included `Install-Megabonk-Together.desktop` first, then `Test-Deck-Beta5.desktop`. The first installer needs internet access and restarts Steam.
+5. Launch Megabonk and confirm the menu says **Deck beta 5**. Host a Friendlies room on one Deck; enter that room's code on the other.
 
-The bundle upgrades earlier Deck betas and includes a restore launcher and matching source. [Test results and remaining validation](TEST-REPORT-2026-09-21.md). Host character confirmation requires at least two players in the lobby. The standalone updater below still installs **beta 2**; use the ZIP above for beta 4. [Previous beta 3 release](https://github.com/dexterlabs1/megabonk-deck/releases/tag/deck-beta3).
+The bundle upgrades earlier Deck betas and includes a restore launcher and matching source. [Test results and remaining validation](TEST-REPORT-2026-09-21.md). Host character confirmation requires at least two players in the lobby. Use the bundle's restore launcher for this beta. [Previous releases](https://github.com/dexterlabs1/megabonk-deck/releases).
 
-## Deck beta 2 — invite freeze mitigation
-
-**Beta 1's experimental Steam invites caused a reported freeze. Download this
-new updater even if you already downloaded the previous one.** Close Megabonk,
-then open it in Desktop Mode. Steam can stay open.
-
-**[Download Deck beta 2 update](https://github.com/dexterlabs1/megabonk-deck/raw/refs/heads/main/Update-Deck-Controls.desktop)** ·
-**[Download restore launcher](https://github.com/dexterlabs1/megabonk-deck/raw/refs/heads/main/Restore-Original-Multiplayer.desktop)**
-
-Beta 2 removes the native Steam invitation integration, retaining controller
-navigation/focus, B to go back, text-entry helpers, visible menu cursor, Paste Code,
-and session-only remembered codes. Host Friendlies, select **Show Room Code**,
-and share the code with your buddy. They enter it in Together > Friendlies to join.
-Use STEAM+X for the keyboard. The trackpad needs Mouse assigned in Steam Input.
-
-The updater installs over official 5.1.0 or beta 1 and preserves the original
-mod backup. The menu says **Deck beta 2** after updating. No save files change.
-**Compiled and helper-tested; no physical Deck or in-game verification here.**
-Steam invites are disabled while their freeze is unresolved.
-
-[Beta details and test limits](DECK-BETA.md) ·
-[Complete mod source](mod-source/megabonk-deck-beta2-source.zip) ·
-[Review the source patch](mod-source/deck-beta2.patch)
+The older `Update-Deck-Controls.desktop` in the repository still installs beta 2. Use the ZIP above for current testing. Steam invites remain disabled; share the room code manually. The trackpad needs a Mouse binding in Steam Input.
 
 ## Installer update — Steam VDF compatibility
 
