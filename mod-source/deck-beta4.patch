@@ -1,0 +1,134 @@
+Deck beta 3 -> Deck beta 4 candidate (incremental, not upstream-to-beta).
+Apply with git apply -p1 from the extracted beta 3 source root.
+
+--- a/DECK-BETA.md
++++ b/DECK-BETA.md
+@@ -1,31 +1,17 @@
+-# Deck beta 3 - host character-selection freeze candidate
++# Deck beta 4 - main-menu controller navigation and button size candidate
+ 
+-Beta 3 removes the native base calls from CustomButton.StartHover and StopHover.
+-IL2CPP generated virtual wrappers can redispatch into these injected overrides,
+-causing recursive calls. Managed hover callbacks remain. The menu displays
+-Deck beta 3; protocol and assembly version remain 5.1.0. No other gameplay or
+-networking code changed. Native base hover visuals are not restored here.
++Beta 4 clones Together in the original Play button's local UI space, preserves
++its geometry and native button fields, and resets only Together's Unity navigation
++to automatic. It retains beta 3's removal of recursive native hover calls.
++Protocol and assembly version remain 5.1.0.
+ 
+-The reported host freeze stops animation during character selection. This
+-candidate removes a matching code-level suspect; the freeze has not been
+-reproduced or confirmed fixed on a Steam Deck. The known connection-timeout,
+-menu-state and networking-reset bugs remain outside this narrow candidate.
++The user confirmed beta 3 no longer freezes while hosting, showing a room code,
++or selecting a character. Beta 4 still needs a physical Deck check: move down to
++Together and back up repeatedly, compare its size, then host and select a character.
++A host needs a second player before Confirm becomes available.
+ 
+-Windows verification: Release PROTON build passed, 12 compiled-DLL DeckSmoke
+-checks passed, and 8 compiled-IL/dependency checks passed. The IL regression
+-rejects the shipped beta 2 DLL's two native base hover calls. Resolved packages
+-and dependency assembly identities match beta 2. No Unity or Deck runtime test
+-was performed. Before calling this fixed, host a room, move focus onto and away
+-from Show Room Code, select a character, continue to map selection, and start
+-with a second player. Preserve BepInEx/LogOutput.log from a failing run.
+-
+-The following documents the cumulative beta 2 features and build procedure.
+-
+-Unofficial GPL-2.0 modification of Megabonk Together 5.1.0. The source base is
+-Fcornaire/megabonk-together commit 009e4bac2731364cbcebe8324f1fbce34c528806;
+-its plugin and common source match tag 5.1.0 (041881b79682a7845c5afc2ebf6887f809808a03).
+-Only client UI and local input are changed. Experimental native Steam integration from beta 1 has been removed after a user reported a freeze when opening Invite Friends. The exact runtime cause has not been reproduced here.
+-The protocol and version sent to matchmaking remain 5.1.0.
++Compilation, managed stub regressions and compiled-IL checks do not execute the
++native Unity/IL2CPP runtime and cannot establish that the Deck issue is resolved.
+ 
+ ## Changes
+ 
+--- a/src/plugin/Patches/MainMenu.cs
++++ b/src/plugin/Patches/MainMenu.cs
+@@ -28,14 +28,23 @@
+         {
+             var playBtn = __instance.btnPlay;
+ 
+-            var go = UnityEngine.Object.Instantiate(playBtn.gameObject);
++            // Clone in the same local UI space. Reparenting an unparented clone
++            // with worldPositionStays=true magnifies it on a scaled Canvas.
++            var go = UnityEngine.Object.Instantiate(playBtn.gameObject, playBtn.transform.parent, false);
++            go.transform.localScale = playBtn.transform.localScale;
++            go.transform.localRotation = playBtn.transform.localRotation;
++            var sourceRect = playBtn.GetComponent<UnityEngine.RectTransform>();
++            var cloneRect = go.GetComponent<UnityEngine.RectTransform>();
++            if (sourceRect != null && cloneRect != null)
++            {
++                cloneRect.anchorMin = sourceRect.anchorMin;
++                cloneRect.anchorMax = sourceRect.anchorMax;
++                cloneRect.pivot = sourceRect.pivot;
++                cloneRect.sizeDelta = sourceRect.sizeDelta;
++                cloneRect.anchoredPosition3D = sourceRect.anchoredPosition3D;
++            }
+ 
+             var originalButton = go.GetComponent<MyButtonNormal>();
+-            if (originalButton != null)
+-            {
+-                UnityEngine.Object.DestroyImmediate(originalButton);
+-            }
+-
+             UnityEngine.UI.Button button = go.GetComponentInChildren<UnityEngine.UI.Button>();
+             if (button != null)
+             {
+@@ -43,7 +52,9 @@
+             }
+ 
+             var customButton = go.AddComponent<PlayTogetherButton>();
++            customButton.InitializeFrom(originalButton, button);
+             customButton.SetMainMenu(__instance);
++            if (originalButton != null) UnityEngine.Object.DestroyImmediate(originalButton);
+ 
+             var textWrapper = go.GetComponent<ButtonTextWrapper>();
+             textWrapper.t_text.text = "TOGETHER!";
+@@ -59,10 +70,8 @@
+             versionTmp.fontSize = tmpText.fontSize * 0.45f;
+             versionTmp.alignment = tmpText.alignment;
+             versionTmp.color = tmpText.color;
+-            versionTmp.text = $"v{MyPluginInfo.PLUGIN_VERSION} Deck beta 3";
++            versionTmp.text = $"v{MyPluginInfo.PLUGIN_VERSION} Deck beta 4";
+ 
+-
+-            go.transform.SetParent(playBtn.transform.parent);
+ 
+             var navigationWindow = go.GetComponentInParent<Window>();
+             if (navigationWindow != null) navigationWindow.FindAllButtonsInWindow();
+--- a/src/plugin/Scripts/Button/PlayTogetherButton.cs
++++ b/src/plugin/Scripts/Button/PlayTogetherButton.cs
+@@ -5,6 +5,29 @@
+     public class PlayTogetherButton : MyButtonNormal
+     {
+         private MainMenu mainMenu;
++
++        internal void InitializeFrom(MyButtonNormal template, UnityEngine.UI.Button clonedButton)
++        {
++            // Adding a managed component does not copy the native component's
++            // serialized fields. Navigation needs this clone's Unity Button.
++            button = clonedButton;
++            if (clonedButton != null)
++            {
++                // Play can carry an explicit first-row link with no Up target.
++                // Together is a new row, so let Unity find its actual neighbours.
++                clonedButton.navigation = UnityEngine.UI.Navigation.defaultNavigation;
++            }
++            if (template == null) return;
++            scaleOnHover = template.scaleOnHover;
++            hoverScale = template.hoverScale;
++            state = template.state;
++            disabledOverlay = template.disabledOverlay;
++            customSfx = template.customSfx;
++            background = template.background;
++            defaultColor = template.defaultColor;
++            hoverColor = template.hoverColor;
++            colorInited = template.colorInited;
++        }
+ 
+         public override void OnClick()
+         {

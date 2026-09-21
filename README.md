@@ -2,18 +2,18 @@
 
 A downloadable launcher that installs **Megabonk Together 5.1.0 (Proton)** and **BepInEx 6 build 752**. No terminal commands, sudo, password, or disabling SteamOS read-only mode needed.
 
-## Deck beta 3 test candidate
+## Deck beta 4 test candidate
 
-**[Download the beta 3 test bundle](https://github.com/dexterlabs1/megabonk-deck/releases/download/deck-beta3/megabonk-deck-beta3-test.zip)**
+**[Download the beta 4 test bundle](https://github.com/dexterlabs1/megabonk-deck/releases/download/deck-beta4/megabonk-deck-beta4-test.zip)**
 
-This candidate removes the hover calls suspected of causing the host's hard freeze during multiplayer character selection. It is compiled and passes automated checks, but the fix has **not been verified on a physical Steam Deck**.
+Beta 4 targets joystick focus getting stuck on Together and the oversized main-menu button. It preserves the button's native references and menu scale. It retains beta 3's hover-recursion correction; the user reported that hosting, showing the room code, and selecting a character no longer froze with beta 3. **Beta 4 controller navigation and appearance still need a physical Deck test.**
 
 1. Close Megabonk and switch the Deck to Desktop Mode.
 2. Download and extract the **whole ZIP**, keeping its files together.
-3. Open `Test-Deck-Beta3.desktop` from the extracted folder.
-4. Launch Megabonk, confirm the menu says **Deck beta 3**, then host a room and try character selection.
+3. Open `Test-Deck-Beta4.desktop` from the extracted folder.
+4. Launch Megabonk, confirm the menu says **Deck beta 4**, and try moving the joystick down to Together and back up before hosting.
 
-The bundle includes a restore launcher and matching source. [Test results and remaining validation](TEST-REPORT-2026-09-21.md). The standalone updater below still installs **beta 2**; use the ZIP above to test beta 3.
+The bundle upgrades earlier Deck betas and includes a restore launcher and matching source. [Test results and remaining validation](TEST-REPORT-2026-09-21.md). Host character confirmation requires at least two players in the lobby. The standalone updater below still installs **beta 2**; use the ZIP above for beta 4. [Previous beta 3 release](https://github.com/dexterlabs1/megabonk-deck/releases/tag/deck-beta3).
 
 ## Deck beta 2 — invite freeze mitigation
 

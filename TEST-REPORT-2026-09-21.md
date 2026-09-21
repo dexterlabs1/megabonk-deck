@@ -51,3 +51,19 @@ The candidate's compiled-IL check passes all 8 assertions, including absence of 
 Thirteen Linux candidate integration tests cover real official/beta 1/beta 2 upgrades, restore to the original official DLL, rollback after a marker-write failure, rejected invalid inputs, and execution of the embedded desktop launcher commands with paths and file URIs containing spaces. No real Steam installation is used. The unchanged original Python suite was also rerun: 24 passed, with its real-BepInEx install test skipped because that temporary fixture was no longer available; the earlier audit completed that same test successfully.
 
 Physical validation remains: host a room, move controller focus onto and away from Show Room Code, select a character, continue to map selection, and start with a second player. Some native hover highlighting may be absent. If the game still freezes, retain `BepInEx/LogOutput.log` from that run before restarting.
+
+## User's beta 3 Deck test
+
+The user reports that hosting, showing the room code, and selecting a character no longer freeze. The lobby contained only the host, so character confirmation could not proceed. The code in `WindowManagerPatches.Update_Postix` deliberately disables host confirmation while `GetAllPlayers().Count() < 2`; that observation is consistent with the existing lobby requirement.
+
+The test exposed two additional menu problems: joystick focus becomes stuck after moving down to Together on first launch (mouse input still works), and Together is too large. The beta 4 candidate targets navigation and button sizing. Multiplayer start with a second player and extended gameplay remain unverified.
+
+## Beta 4 candidate
+
+The [beta 4 test bundle](https://github.com/dexterlabs1/megabonk-deck/releases/download/deck-beta4/megabonk-deck-beta4-test.zip) preserves the cloned button's native references and visual settings, uses Automatic navigation for Together, and matches Play's local geometry. It keeps the beta 3 hover correction and the existing requirement for two players before host confirmation.
+
+Verification: Release PROTON build passed with 15 existing warnings and no errors. A managed harness executes the actual clone setup against Unity substitutes: 24 beta 4 assertions pass, and nine beta 3 negative controls expose the missing setup. Ten compiled navigation checks and seven compiled hover checks pass. These verify source setup and generated code, not native navigation or rendered appearance.
+
+All 14 Linux candidate integration tests pass, including beta 3 upgrades, the full beta 1 → 2 → 3 → 4 → official restore chain, rollback, and execution of the embedded launchers with filename and file-URI paths. The bundle includes matching GPL source and the beta 4 restore launcher. Published beta 3 artifacts are unchanged.
+
+Deck acceptance test: confirm the beta 4 label, move down to Together and back up repeatedly, compare its apparent size with the native menu, then host and exercise Show Room Code and character selection again. Confirm needs another player in the lobby. No physical beta 4 result has been reported yet.

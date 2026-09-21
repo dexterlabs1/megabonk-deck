@@ -16,4 +16,6 @@ The beta 3 candidate removes only the two native virtual base calls and changes 
 
 Check the compiled CustomButton hover method IL, using the old beta as the negative control. A corrected binary must contain no calls to the base native hover methods. Then test entering and leaving custom buttons, Show Room Code, and character confirmation on a physical Deck as host.
 
-This correction removes a supported recursion mechanism. The user's exact freeze still requires live confirmation; other menu and networking defects remain documented in the test report.
+This correction removes a supported recursion mechanism. In a subsequent beta 3 Deck test, the user reported that hosting, showing the room code, and selecting a character no longer froze. This confirms those interactions in that test, not full multiplayer stability. Other menu and networking defects remain documented in the test report.
+
+The same test exposed a separate controller issue: moving down to Together traps joystick focus, although mouse input works. The Together button also appears too large. Do not reintroduce native virtual hover calls to fix controller navigation or visuals.
