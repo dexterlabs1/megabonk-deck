@@ -1,0 +1,162 @@
+using System;
+using System.Collections;
+using System.Collections.Generic;
+
+public static class Program
+{
+    static int failures;
+    static void Check(string name, Action test)
+    {
+        try { test(); Console.WriteLine("PASS " + name); }
+        catch (Exception ex) { failures++; Console.WriteLine("FAIL " + name + ": " + ex.GetType().Name + ": " + ex.Message); }
+    }
+    static void Assert(bool ok, string message) { if (!ok) throw new Exception(message); }
+    public static int Main()
+    {
+        Check("random connection timeout returns to UI without throwing", () => {
+            Plugin.Instance.NetworkHandler = new NetworkHandler();
+            var modal = new NetworkMenuTab();
+            var coroutine = modal.RandomRoutine();
+            for (int i = 0; i < 100 && coroutine.MoveNext(); i++) { }
+        });
+        Check("friendlies connection timeout returns to UI without throwing", () => {
+            Plugin.Instance.NetworkHandler = new NetworkHandler();
+            var modal = new NetworkMenuTab();
+            var coroutine = modal.FriendliesRoutine();
+            for (int i = 0; i < 100 && coroutine.MoveNext(); i++) { }
+        });
+        Check("B after failed friendlies connection shows only root menu", () => {
+            Plugin.Instance.NetworkHandler = new NetworkHandler { IsConnectedToMatchMaker = false };
+            var modal = new NetworkMenuTab();
+            modal.SimulateConnectionStarted();
+            var coroutine = modal.FriendliesRoutine();
+            for (int i = 0; i < 100 && coroutine.MoveNext(); i++) { }
+            Assert(modal.FriendliesVisible && !modal.RootVisible, "Setup failed: failure did not return to friendlies");
+            modal.ControllerBack();
+            Assert(modal.RootVisible && !modal.FriendliesVisible, "Root and Friendlies are BOTH visible; stale coroutine took OnStopClicked branch");
+        });
+        Check("closing changelog restores enabled main-menu buttons", () => {
+            var play = new MyButton(); var together = new MyButton();
+            WindowManager.activeWindow = new Window { allButtons = new() { play, together } };
+            ChangelogModal.Show(new List<VersionChanges>());
+            Assert(!play.Enabled && !together.Enabled, "Setup failed: changelog did not disable original buttons");
+            var controls = new DeckMenuControls();
+            // Models the capture/replacement in DeckMenuControls.Tick lines 90/110.
+            controls.AcquireAndReplace(WindowManager.activeWindow, new() { new MyButton() });
+            ChangelogModal.Last.NavigationOwner = controls;
+            ChangelogModal.Last.Close();
+            Assert(play.Enabled && together.Enabled, "Restored main-menu buttons remain DISABLED");
+        });
+        Console.WriteLine($"Result: {failures}/4 regression assertions failed; production method bodies, stubbed runtime.");
+        return failures == 0 ? 0 : 1;
+    }
+}
+
+public class NetworkMenuTab : ModalBase
+{
+    CustomButton stopButton = new(), randomButton = new(), friendliesButton = new(), netplayOptionsButton = new(), closeButton = new();
+    CustomButton hostButton = new(), joinButton = new(), friendliesBackButton = new(), netplayOptionsBackButton = new(), pasteButton = new();
+    Field playerNameInput = new(), codeInput = new();
+    GameObject label = new(), friendliesTitle = new(), codeLabel = new(), netplayOptionsTitle = new(), saveToggleSetting = new(), sharedExpToggleSetting = new();
+    MainMenu mainMenu = new(); Coroutine connectionCoroutine;
+    public NetworkMenuTab() { UpdateModalContents(false); UpdateFriendliesUI(false); UpdateNetplayOptionsUI(false); stopButton.gameObject.SetActive(false); }
+    public IEnumerator RandomRoutine() => HandleConnectionStatus();
+    public IEnumerator FriendliesRoutine() => HandleFriendlies();
+    public void SimulateConnectionStarted() { connectionCoroutine = new Coroutine(); }
+    public bool RootVisible => randomButton.gameObject.activeInHierarchy;
+    public bool FriendliesVisible => hostButton.gameObject.activeInHierarchy;
+    void OnFriendliesBackClicked() { UpdateFriendliesUI(false); UpdateModalContents(true); }
+    void OnNetplayOptionsBackClicked() { UpdateNetplayOptionsUI(false); UpdateModalContents(true); }
+    void OnCloseClicked() { CloseModal(); }
+    /*NETWORK_METHODS*/
+}
+
+public class ChangelogModal : ModalBase
+{
+    public static ChangelogModal Last;
+    readonly AutoUpdater autoUpdaterService = new();
+    public ChangelogModal() { Last = this; }
+    public void SetChanges(ICollection<VersionChanges> _) { }
+    public void Close() { OnCloseClicked(); }
+    /*CHANGELOG_METHODS*/
+}
+public class DeckMenuControls
+{
+    Window owner; List<MyButton> savedButtons; HashSet<GameObject> savedButtonSet; MyButton savedSelection; ModalBase currentModal;
+    public void AcquireAndReplace(Window window, List<MyButton> modalButtons)
+    {
+        owner = window; savedButtons = window.allButtons; savedButtonSet = window.allButtonsHashed; savedSelection = ButtonManager.selectedButton2;
+        window.allButtons = modalButtons;
+    }
+    public void Release() { RestoreWindow(); }
+    /*RESTORE_METHOD*/
+}
+
+public class ModalBase
+{
+    public DeckMenuControls NavigationOwner;
+    internal virtual void ControllerBack() { }
+    protected void HideLoader() { }
+    protected void SetStatusText(string _) { }
+    protected void CloseModal() { NavigationOwner?.Release(); }
+}
+public class GameObject
+{
+    public bool activeInHierarchy = true;
+    public GameObject(string name = "") { }
+    public void SetActive(bool active) { activeInHierarchy = active; }
+    public T GetComponent<T>() where T : new() => new();
+    public T AddComponent<T>() where T : new() => new();
+}
+public class MyButton
+{
+    public GameObject gameObject = new(); public bool Enabled = true;
+    public void SetInteractable(bool value) { Enabled = value; }
+}
+public class CustomButton : MyButton { }
+public class Field { public GameObject gameObject = new(); }
+public class ButtonTextWrapper { public Text t_text = new(); }
+public class Text { public string text = ""; }
+public class Coroutine { }
+public class CoroutineRunner
+{
+    public static CoroutineRunner Instance = new();
+    public void StopCoroutine(Coroutine _) { }
+}
+public class WaitForSeconds { public WaitForSeconds(float _) { } }
+public class Window { public List<MyButton> allButtons = new(); public HashSet<GameObject> allButtonsHashed = new(); }
+public class CharacterMenu : Window
+{
+    public MyButton selectedButton; public MyButton[] characterButtons = { new() }; public MyButton b_confirm = new();
+}
+public class WindowManager { public static Window activeWindow = new CharacterMenu(); }
+public class ButtonManager { public static MyButton selectedButton2; public static void ForceHoverButton(MyButton value) { selectedButton2 = value; } }
+public class MainMenu { public void GoToCharacterSelection() { WindowManager.activeWindow = new CharacterMenu(); } }
+public class SoundSet { public object[] sounds = { new() }; }
+public class AudioManager
+{
+    public static AudioManager Instance = new(); public SoundSet uiSelect = new(), purchaseSfx = new();
+    public void PlaySfx(object _) { }
+}
+public class ValueBox<T> { public T Value; }
+public class ModConfig
+{
+    public static ValueBox<bool> EnabledSharedExperience = new(), ShowChangelog = new();
+    public static ValueBox<string> PreviousVersion = new();
+    public static void Save() { }
+}
+public class AutoUpdater { public string GetCurrentVersion() => "5.1.0"; }
+public class VersionChanges { }
+public class NetworkHandler
+{
+    public bool? IsConnectedToMatchMaker; public bool? HasFoundMatch;
+    public string MatchMakerFailureMessage = "Simulated unavailable server";
+    public bool IsNetworkInterruptedStatus; public bool IsHost;
+    public void ResetNetworking() { IsConnectedToMatchMaker = null; HasFoundMatch = null; }
+    public int GetLobbySize() => 2;
+}
+public class Plugin
+{
+    public static Plugin Instance = new(); public NetworkHandler NetworkHandler = new();
+    public static void StartNotification((string,string) _, (string,string) __, string[] ___) { }
+}

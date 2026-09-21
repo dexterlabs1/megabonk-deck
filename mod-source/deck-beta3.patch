@@ -1,0 +1,71 @@
+Deck beta 2 -> Deck beta 3 candidate (incremental, not upstream-to-beta).
+Apply with git apply -p1 from the extracted beta 2 source root.
+
+--- a/DECK-BETA.md
++++ b/DECK-BETA.md
+@@ -1,4 +1,25 @@
+-# Deck controls — beta 2 freeze mitigation
++# Deck beta 3 - host character-selection freeze candidate
++
++Beta 3 removes the native base calls from CustomButton.StartHover and StopHover.
++IL2CPP generated virtual wrappers can redispatch into these injected overrides,
++causing recursive calls. Managed hover callbacks remain. The menu displays
++Deck beta 3; protocol and assembly version remain 5.1.0. No other gameplay or
++networking code changed. Native base hover visuals are not restored here.
++
++The reported host freeze stops animation during character selection. This
++candidate removes a matching code-level suspect; the freeze has not been
++reproduced or confirmed fixed on a Steam Deck. The known connection-timeout,
++menu-state and networking-reset bugs remain outside this narrow candidate.
++
++Windows verification: Release PROTON build passed, 12 compiled-DLL DeckSmoke
++checks passed, and 8 compiled-IL/dependency checks passed. The IL regression
++rejects the shipped beta 2 DLL's two native base hover calls. Resolved packages
++and dependency assembly identities match beta 2. No Unity or Deck runtime test
++was performed. Before calling this fixed, host a room, move focus onto and away
++from Show Room Code, select a character, continue to map selection, and start
++with a second player. Preserve BepInEx/LogOutput.log from a failing run.
++
++The following documents the cumulative beta 2 features and build procedure.
+ 
+ Unofficial GPL-2.0 modification of Megabonk Together 5.1.0. The source base is
+ Fcornaire/megabonk-together commit 009e4bac2731364cbcebe8324f1fbce34c528806;
+@@ -11,7 +32,7 @@
+ - Register Together in the game's native controller navigation.
+ - Restrict native navigation to visible mod-dialog buttons while a dialog is open;
+   restore the previous button list, button lookup set, and focus on close.
+-- Restore hover feedback, prevent duplicate Together dialogs, and block clicks
++- Preserve managed hover callbacks, prevent duplicate Together dialogs, and block clicks
+   through dialog backgrounds.
+ - B backs out of text input, submenus, and dialogs; while connecting it cancels.
+ - Make room-code/name fields controller selectable; use STEAM+X for the keyboard.
+--- a/src/plugin/Patches/MainMenu.cs
++++ b/src/plugin/Patches/MainMenu.cs
+@@ -59,7 +59,7 @@
+             versionTmp.fontSize = tmpText.fontSize * 0.45f;
+             versionTmp.alignment = tmpText.alignment;
+             versionTmp.color = tmpText.color;
+-            versionTmp.text = $"v{MyPluginInfo.PLUGIN_VERSION} Deck beta 2";
++            versionTmp.text = $"v{MyPluginInfo.PLUGIN_VERSION} Deck beta 3";
+ 
+ 
+             go.transform.SetParent(playBtn.transform.parent);
+--- a/src/plugin/Scripts/Button/CustomButton.cs
++++ b/src/plugin/Scripts/Button/CustomButton.cs
+@@ -33,13 +33,14 @@
+ 
+         public override void StartHover()
+         {
+-            base.StartHover();
++            // IL2CPP virtual base wrappers can redispatch to this injected override,
++            // recursing until the game freezes. Invoke only the managed callback.
+             onStartHover?.Invoke();
+         }
+ 
+         public override void StopHover()
+         {
+-            base.StopHover();
++            // Avoid the same IL2CPP virtual redispatch recursion as StartHover.
+             onEndHover?.Invoke();
+         }
+ 

@@ -2,6 +2,19 @@
 
 A downloadable launcher that installs **Megabonk Together 5.1.0 (Proton)** and **BepInEx 6 build 752**. No terminal commands, sudo, password, or disabling SteamOS read-only mode needed.
 
+## Deck beta 3 test candidate
+
+**[Download the beta 3 test bundle](https://github.com/dexterlabs1/megabonk-deck/releases/download/deck-beta3/megabonk-deck-beta3-test.zip)**
+
+This candidate removes the hover calls suspected of causing the host's hard freeze during multiplayer character selection. It is compiled and passes automated checks, but the fix has **not been verified on a physical Steam Deck**.
+
+1. Close Megabonk and switch the Deck to Desktop Mode.
+2. Download and extract the **whole ZIP**, keeping its files together.
+3. Open `Test-Deck-Beta3.desktop` from the extracted folder.
+4. Launch Megabonk, confirm the menu says **Deck beta 3**, then host a room and try character selection.
+
+The bundle includes a restore launcher and matching source. [Test results and remaining validation](TEST-REPORT-2026-09-21.md). The standalone updater below still installs **beta 2**; use the ZIP above to test beta 3.
+
 ## Deck beta 2 — invite freeze mitigation
 
 **Beta 1's experimental Steam invites caused a reported freeze. Download this
