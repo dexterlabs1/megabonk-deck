@@ -175,5 +175,10 @@ the original backup path. Official restore returned the expected original DLL
 hash. Beta 7 reinstall and launch then succeeded, with no new startup errors.
 The installed DLL is identical to the candidate the user physically tested.
 
+Published as prerelease `deck-beta7` from `4beb033`. All six public assets,
+including the artifact manifest, were downloaded without authentication and
+matched their recorded hashes. The one-file installer SHA-256 is
+`01c5a26f698c40bf2bd5c334d5932f48cf9ac06e22a2844a65a544cfab1faf9c`.
+
 Two-player joining, match start, extended play, a fresh install on a friend's
 physical Deck and physical STEAM+X remain unverified.
