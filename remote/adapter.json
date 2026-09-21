@@ -1,0 +1,8 @@
+{
+  "id": "megabonk",
+  "files": {
+    "adapter.py": "adapter.py",
+    "deployment.py": "deployment.py",
+    "installer.py": "../installer.py"
+  }
+}

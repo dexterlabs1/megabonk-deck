@@ -1,5 +1,8 @@
 # Project knowledge
 
+- [Physical Deck remote testing](./remote-live-testing.md) - verified pairing, capture, input, restore and reboot; live mod findings and remaining multiplayer checks.
+- [Modal controller regression](../diagnostics/modal-navigation/README.md) - generated IL2CPP array signatures and modal focus checks for beta 6.
+
 - [Remote Deck workflow](../remote/README.md) — Valve pairing, SSH commands, screenshots, virtual input, unattended beta deployment, and live acceptance steps.
 - [One-file friend installer](../friend-installer/README.md) — minimal beta 5 launcher, fresh installation and upgrade behavior, build and integration tests.
 

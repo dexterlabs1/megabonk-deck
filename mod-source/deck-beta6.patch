@@ -1,0 +1,264 @@
+Deck beta 5 -> Deck beta 6 candidate (incremental, not upstream-to-beta).
+Apply with git -c core.autocrlf=false apply -p1 from the extracted beta 5 source root.
+
+--- a/DECK-BETA.md
++++ b/DECK-BETA.md
+@@ -1,4 +1,25 @@
+-# Deck beta 5 - visible manual room-code entry
++# Deck beta 6 - restore modal controller navigation
++
++Live Deck testing exposed a Unity/IL2CPP array-return mismatch in three modal
++controller calls. Beta 6 routes these calls through the existing runtime helper,
++which adapts the generated IL2CPP array. This targets background-menu selection
++and repeated input exceptions while Together dialogs are open. Modal focus now
++remains inside its visible buttons on every frame; background Unity navigation
++is disabled temporarily and restored exactly on close. Custom buttons show their
++hover/default colors by setting the graphic directly, with no native virtual
++base hover calls. Optional hover callbacks still run after default feedback. A
++gold controller selection marker is refreshed explicitly every frame, independent
++of native hover dispatch, and original modal colors are restored on close.
++Successful hosting/joining releases modal controller ownership before character
++selection; delayed cleanup uses real time, so paused menus cannot stall it. The
++network entry dialog cannot capture controller focus outside the main menu. Earlier hover,
++main-menu navigation, and Friendlies layout changes remain. Protocol and assembly
++version remain 5.1.0.
++
++Build and compiled-IL regression checks are required before packaging. Physical
++Deck modal focus, Back, manual typing, and multiplayer remain acceptance checks.
++
++## Previous beta 5 changes
+ 
+ Beta 5 separates the Friendlies title, Host, room-code input, keyboard hint,
+ Paste/Join buttons, status message and Back into non-overlapping rows. The panel
+--- a/src/plugin/Patches/MainMenu.cs
++++ b/src/plugin/Patches/MainMenu.cs
+@@ -73,7 +73,7 @@
+             versionTmp.rectTransform.sizeDelta = new UnityEngine.Vector2(300, 28);
+             versionTmp.alignment = tmpText.alignment;
+             versionTmp.color = tmpText.color;
+-            versionTmp.text = $"v{MyPluginInfo.PLUGIN_VERSION} Deck beta 5";
++            versionTmp.text = $"v{MyPluginInfo.PLUGIN_VERSION} Deck beta 6";
+ 
+ 
+             var navigationWindow = go.GetComponentInParent<Window>();
+--- a/src/plugin/Scripts/Modal/DeckMenuControls.cs
++++ b/src/plugin/Scripts/Modal/DeckMenuControls.cs
+@@ -1,8 +1,10 @@
+ using Assets.Scripts.Managers;
++using MegabonkTogether.Helpers;
+ using System;
+ using System.Collections.Generic;
+ using TMPro;
+ using UnityEngine;
++using UnityEngine.UI;
+ 
+ namespace MegabonkTogether.Scripts.Modal
+ {
+@@ -26,6 +28,12 @@
+         private bool savedCursorVisible;
+         private CursorLockMode savedCursorLock;
+         private int previousSignature;
++        private readonly Dictionary<UnityEngine.UI.Button, Navigation> backgroundNavigation = new();
++        private Il2CppSystem.Collections.Generic.List<MyButton> modalButtons;
++        private Il2CppSystem.Collections.Generic.HashSet<GameObject> modalButtonSet;
++        private bool announceOwnership;
++        private readonly Dictionary<MaskableGraphic, Color> modalColors = new();
++        private static readonly Color ControllerFocusColor = new Color(0.95f, 0.65f, 0.12f, 1f);
+         private bool loggedFailure;
+         internal static readonly List<ModalBase> Modals = new();
+         internal static bool IsEditingText
+@@ -34,7 +42,7 @@
+             {
+                 var modal = TopModal();
+                 if (modal == null) return false;
+-                foreach (var input in modal.NavigationPanel.GetComponentsInChildren<TMP_InputField>())
++                foreach (var input in modal.NavigationPanel.RuntimeGetComponentsInChildren<TMP_InputField>())
+                     if (input.isFocused) return true;
+                 return false;
+             }
+@@ -47,6 +55,9 @@
+             {
+                 var modal = Modals[i];
+                 if (modal == null) { Modals.RemoveAt(i); continue; }
++                // The network entry dialog belongs only to the main menu. Its
++                // success coroutine may still be finishing after a window change.
++                if (modal is NetworkMenuTab && WindowManager.activeWindow?.name != "Menu") continue;
+                 if (modal.NavigationPanel != null && modal.NavigationPanel.activeInHierarchy)
+                     return modal;
+             }
+@@ -92,34 +103,49 @@
+                     savedSelection = ButtonManager.selectedButton2;
+                     currentModal = modal;
+                     previousSignature = 0;
++                    SuppressBackgroundNavigation();
++                    announceOwnership = true;
+                 }
+             }
+             if (owner == null || modal == null) return;
+ 
+             var buttons = new Il2CppSystem.Collections.Generic.List<MyButton>();
+             int signature = 17;
+-            foreach (var button in modal.NavigationPanel.GetComponentsInChildren<MyButton>())
++            foreach (var button in modal.NavigationPanel.RuntimeGetComponentsInChildren<MyButton>())
+             {
+                 if (button == null || !button.gameObject.activeInHierarchy || button.state != MyButton.EButtonState.Active)
+                     continue;
+                 buttons.Add(button);
++                var visual = button.gameObject.GetComponent<MyButtonNormal>();
++                if (visual != null && visual.background != null && !modalColors.ContainsKey(visual.background))
++                    modalColors.Add(visual.background, visual.background.color);
+                 signature = unchecked(signature * 31 + button.GetInstanceID());
+             }
+-            if (signature != previousSignature)
+-            {
+-                owner.allButtons = buttons;
+-                var set = new Il2CppSystem.Collections.Generic.HashSet<GameObject>();
+-                foreach (var button in buttons) set.Add(button.gameObject);
+-                owner.allButtonsHashed = set;
++            if (modalButtons == null || signature != previousSignature)
++            {
++                modalButtons = buttons;
++                modalButtonSet = new Il2CppSystem.Collections.Generic.HashSet<GameObject>();
++                foreach (var button in buttons) modalButtonSet.Add(button.gameObject);
+                 previousSignature = signature;
+-                var selected = ButtonManager.selectedButton2;
+-                if (selected == null || !buttons.Contains(selected))
+-                {
+-                    var preferred = modal.DefaultControllerButton;
+-                    if (preferred != null && buttons.Contains(preferred)) ButtonManager.ForceHoverButton(preferred);
+-                    else if (buttons.Count > 0) ButtonManager.ForceHoverButton(buttons[0]);
+-                    else ButtonManager.SetNull();
+-                }
++            }
++            // Unity Automatic navigation searches every active Selectable, not just
++            // Window.allButtons. Keep background navigation disabled and repair
++            // focus even when this modal's button membership has not changed.
++            owner.allButtons = modalButtons;
++            owner.allButtonsHashed = modalButtonSet;
++            var selected = ButtonManager.selectedButton2;
++            if (selected == null || !modalButtons.Contains(selected))
++            {
++                var preferred = modal.DefaultControllerButton;
++                if (preferred != null && modalButtons.Contains(preferred)) ButtonManager.ForceHoverButton(preferred);
++                else if (modalButtons.Count > 0) ButtonManager.ForceHoverButton(modalButtons[0]);
++                else ButtonManager.SetNull();
++            }
++            PaintControllerFocus(IsEditingText ? null : ButtonManager.selectedButton2);
++            if (announceOwnership)
++            {
++                Plugin.Log.LogInfo($"Deck modal focus: {modal.GetType().Name}; window={owner.name}; buttons={modalButtons.Count}; graphics={modalColors.Count}; selected={ButtonManager.selectedButton2?.GetInstanceID()}");
++                announceOwnership = false;
+             }
+ 
+             // Read the underlying player here; the prefix suppresses only
+@@ -127,7 +153,7 @@
+             var player = MyInputManager.GetPlayer();
+             if (player != null && player.GetButtonDown(MyInputManager.UICancel))
+             {
+-                foreach (var input in modal.NavigationPanel.GetComponentsInChildren<TMP_InputField>())
++                foreach (var input in modal.NavigationPanel.RuntimeGetComponentsInChildren<TMP_InputField>())
+                 {
+                     if (input.isFocused) { input.DeactivateInputField(); return; }
+                 }
+@@ -135,8 +161,43 @@
+             }
+         }
+ 
++        private void PaintControllerFocus(MyButton selected)
++        {
++            // Refresh after native navigation each frame; injected hover callbacks
++            // are not consistently dispatched by every controller selection path.
++            foreach (var pair in modalColors)
++                if (pair.Key != null) pair.Key.color = pair.Value;
++            if (selected == null) return;
++            var visual = selected.gameObject.GetComponent<MyButtonNormal>();
++            if (visual != null && visual.background != null && modalColors.ContainsKey(visual.background))
++                visual.background.color = ControllerFocusColor;
++        }
++
++        private void SuppressBackgroundNavigation()
++        {
++            if (savedButtons == null) return;
++            foreach (var button in savedButtons)
++            {
++                if (button == null || button.button == null || backgroundNavigation.ContainsKey(button.button)) continue;
++                var native = button.button;
++                var navigation = native.navigation;
++                backgroundNavigation.Add(native, navigation);
++                navigation.mode = Navigation.Mode.None;
++                native.navigation = navigation;
++            }
++        }
++
+         private void RestoreWindow()
+         {
++            foreach (var pair in backgroundNavigation)
++                if (pair.Key != null) pair.Key.navigation = pair.Value;
++            backgroundNavigation.Clear();
++            foreach (var pair in modalColors)
++                if (pair.Key != null) pair.Key.color = pair.Value;
++            modalColors.Clear();
++            modalButtons = null;
++            modalButtonSet = null;
++            announceOwnership = false;
+             if (owner != null)
+             {
+                 owner.allButtons = savedButtons;
+--- a/src/plugin/Scripts/Button/CustomButton.cs
++++ b/src/plugin/Scripts/Button/CustomButton.cs
+@@ -34,13 +34,16 @@
+         public override void StartHover()
+         {
+             // IL2CPP virtual base wrappers can redispatch to this injected override,
+-            // recursing until the game freezes. Invoke only the managed callback.
++            // recursing until the game freezes. Set the graphic directly, then
++            // let optional callbacks override this default visual feedback.
++            if (background != null) background.color = hoverColor;
+             onStartHover?.Invoke();
+         }
+ 
+         public override void StopHover()
+         {
+             // Avoid the same IL2CPP virtual redispatch recursion as StartHover.
++            if (background != null) background.color = defaultColor;
+             onEndHover?.Invoke();
+         }
+ 
+--- a/src/plugin/Scripts/Modal/NetworkMenuTab.cs
++++ b/src/plugin/Scripts/Modal/NetworkMenuTab.cs
+@@ -944,6 +944,8 @@
+             SetStatusText("Match found!");
+             stopButton.gameObject.SetActive(false);
+ 
++            // Release controller ownership before opening the native character window.
++            DeckMenuControls.ReleaseModal(this);
+             mainMenu.GoToCharacterSelection();
+ 
+             var characterMenu = WindowManager.activeWindow as CharacterMenu;
+@@ -957,7 +959,7 @@
+             var lobbySize = Plugin.Instance.NetworkHandler.GetLobbySize();
+             Plugin.StartNotification(("MegabonkTogether", "MatchSuccess"), ("MegabonkTogether", "MatchSuccessDesc"), [role, lobbySize.ToString()]);
+ 
+-            yield return new WaitForSeconds(1f);
++            yield return new WaitForSecondsRealtime(1f);
+             CloseModal();
+         }
+ 
+@@ -1030,6 +1032,8 @@
+             SetStatusText("Joined!");
+             stopButton.gameObject.SetActive(false);
+ 
++            // Release controller ownership before opening the native character window.
++            DeckMenuControls.ReleaseModal(this);
+             mainMenu.GoToCharacterSelection();
+ 
+             var characterMenu = WindowManager.activeWindow as CharacterMenu;
+@@ -1048,7 +1052,7 @@
+                 Plugin.StartNotification(("MegabonkTogether", "FriendliesClientSuccess"), ("MegabonkTogether", "FriendliesClientSuccessDesc"), [""]);
+             }
+ 
+-            yield return new WaitForSeconds(1f);
++            yield return new WaitForSecondsRealtime(1f);
+             CloseModal();
+         }
+     }

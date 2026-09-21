@@ -89,3 +89,52 @@ The new 13,081-byte `Install-Megabonk-Deck-Beta5.desktop` embeds the audited ori
 Thirteen Linux integration tests passed with real archives, including execution of the exact Desktop launcher payload in a separate process from an unrelated working directory. They cover fresh setup, saves/backups, existing official and beta 4 upgrades, idempotence, restore, cancellation, corruption and concurrent installation changes.
 
 All 87 remote workflow tests passed in WSL; Windows passed 65 with 22 Linux-only skips. Tests cover SSH command construction and transfer failures, stale/incomplete screenshot rejection, process selection, virtual-input cleanup, and the actual helper subprocess installing beta 5 and restoring the original DLL under a temporary HOME. Pairing, actual Gaming Mode capture/input and reboot reconnection are tracked in [the remote workflow](remote/README.md).
+
+## Physical Deck session and project separation
+
+Valve pairing subsequently completed. The Deck runs SteamOS 3.8.16 build
+20260716.1 and Megabonk 1.0.69. Real Gaming Mode screenshots, commands, verified
+transfers, virtual mouse/keyboard/controller input, launch/stop and logs were
+tested. Original-mod restore and beta reinstall preserved the original backup.
+The Deck rebooted and reconnected without another pairing prompt; a fresh Gaming
+Mode screenshot was captured and inspected afterward.
+
+Reusable controls now live in the independent local `SteamDeckControl` project.
+Its 88 tests pass in WSL (74 pass on Windows with 14 Linux-only skips). This repo
+retains the Megabonk adapter and deployment pins; 11 adapter/forwarder tests pass.
+The separated core and adapter were bootstrapped and verified against the Deck.
+See [live testing notes](knowledge/remote-live-testing.md).
+
+## Beta 6 controller corrections
+
+Live beta 5 logs exposed three component-array calls whose compiled return type
+does not match the generated Deck IL2CPP assembly. Beta 6 uses the existing runtime
+compatibility helper. It also confines modal navigation, restores the underlying
+window's navigation when closing, and draws a managed gold selection marker.
+Native hover callbacks alone did not render that marker in live tests.
+
+The physical Deck showed the marker moving between Friendlies and Close. A opened
+Friendlies, direct keyboard input appeared in the room-code field, B returned to
+the parent menu, and controller activation of Host opened character selection.
+The game remained responsive around 60 fps. A later host-transition check caught
+stale modal ownership while the character window was active; the retained live
+notes explain that additional correction.
+
+The final handoff correction passed on the Deck: after hosting entirely by
+controller, Right and A changed Fox to Sir Oofie. Room-code reveal remained
+responsive at 60 fps. Logs contained no modal missing-method/controller errors
+or stale ownership of the character window. Final official restore and beta 6
+reinstall passed. The C# changes pass 38 production-source harness checks and
+26 compiled-IL checks; the Release build has zero errors and 15 existing warnings.
+
+The one-file beta 6 launcher is about 13 KB and downloads only runtime packages.
+Seventeen candidate, 14 friend-installer and 10 deployment integration tests use
+the real pinned archives, including subprocess launchers, beta 5 upgrades,
+rollback, and official restore. Matching GPL source is packaged separately and
+inside the offline test bundle. Previously published artifacts remain unchanged.
+
+Remaining acceptance requires a second account: joining by a real room code,
+two-player character confirmation, match start and extended play. Fresh setup on
+a second physical Deck, built-in joystick behavior and physical STEAM+X also need
+confirmation. Virtual STEAM+X opened Steam's menu instead; direct remote typing
+worked. These results support a test release, not a claim of complete stability.

@@ -21,16 +21,16 @@ CONFIG = '"UserLocalConfigStore" { "Software" { "Valve" { "Steam" { "apps" { "12
 class FriendInstallerTests(unittest.TestCase):
     @classmethod
     def setUpClass(cls):
-        cls.bundle = (ROOT / 'releases/megabonk-deck-beta5-test.zip').read_bytes()
-        cls.package = (ROOT / 'releases/megabonk-deck-beta5.zip').read_bytes()
+        cls.bundle = (ROOT / 'releases/megabonk-deck-beta6-test.zip').read_bytes()
+        cls.package = (ROOT / 'releases/megabonk-deck-beta6.zip').read_bytes()
         cls.official_zip = Path(os.environ['MEGABONK_OFFICIAL_ZIP']).read_bytes()
         cls.loader_zip = Path(os.environ['MEGABONK_LOADER_ZIP']).read_bytes()
         with zipfile.ZipFile(io.BytesIO(cls.bundle)) as archive:
             cls.installer = types.ModuleType('installer')
-            exec(archive.read('megabonk-deck-beta5-test/installer.py'), cls.installer.__dict__)
+            exec(archive.read('megabonk-deck-beta6-test/installer.py'), cls.installer.__dict__)
             sys.modules['installer'] = cls.installer
             cls.updater = types.ModuleType('candidate_updater')
-            exec(archive.read('megabonk-deck-beta5-test/candidate_updater.py'), cls.updater.__dict__)
+            exec(archive.read('megabonk-deck-beta6-test/candidate_updater.py'), cls.updater.__dict__)
             sys.modules['candidate_updater'] = cls.updater
         cls.friend = types.ModuleType('friend_install')
         exec((ROOT / 'friend-installer/install.py').read_bytes(), cls.friend.__dict__)
@@ -40,6 +40,10 @@ class FriendInstallerTests(unittest.TestCase):
             cls.beta4 = types.ModuleType('beta4')
             exec(archive.read('megabonk-deck-beta4-test/candidate_updater.py'), cls.beta4.__dict__)
             cls.beta4_package = archive.read('megabonk-deck-beta4-test/megabonk-deck-beta4.zip')
+        with zipfile.ZipFile(ROOT / 'releases/megabonk-deck-beta5-test.zip') as archive:
+            cls.beta5 = types.ModuleType('beta5')
+            exec(archive.read('megabonk-deck-beta5-test/candidate_updater.py'), cls.beta5.__dict__)
+            cls.beta5_package = archive.read('megabonk-deck-beta5-test/megabonk-deck-beta5.zip')
         assert hashlib.sha256(cls.official_zip).hexdigest() == cls.installer.PACKAGES[1][2]
         assert hashlib.sha256(cls.loader_zip).hexdigest() == cls.installer.PACKAGES[0][2]
 
@@ -73,7 +77,8 @@ class FriendInstallerTests(unittest.TestCase):
                    patch.object(self.installer.subprocess, 'Popen'),
                    patch.object(self.updater, 'running', return_value=False),
                    patch.object(self.updater, 'dialog', return_value=True),
-                   patch.object(self.beta4, 'running', return_value=False)]
+                   patch.object(self.beta4, 'running', return_value=False),
+                   patch.object(self.beta5, 'running', return_value=False)]
         for item in patches:
             item.start()
             self.addCleanup(item.stop)
@@ -99,7 +104,7 @@ class FriendInstallerTests(unittest.TestCase):
         self.assertTrue((self.game / 'winhttp.dll').is_file())
         self.assertEqual(sum(question for _, question in self.dialogs), 1)
         self.assertEqual(len(self.dialogs), 2)
-        self.assertIn('Installed Deck beta 5!', self.dialogs[-1][0])
+        self.assertIn('Installed Deck beta 6!', self.dialogs[-1][0])
         self.assertEqual(self.save.read_bytes(), b'precious game save')
         self.assertIn('winhttp=n,b', self.config.read_text())
         base_backup = Path(json.loads((self.game / '.megabonk-deck.json').read_text())['backup'])
@@ -133,6 +138,15 @@ class FriendInstallerTests(unittest.TestCase):
             self.assertFalse(self.friend.main())
         download.assert_not_called()
         self.assertEqual(self.snapshot(), before)
+
+    def test_beta5_upgrade_preserves_first_official_backup(self):
+        self.managed()
+        self.beta5.apply_update(self.game, self.state, self.beta5_package)
+        original = json.loads((self.state / 'deck-beta-backup.json').read_text())['original']
+        self.friend.main()
+        self.assertEqual(json.loads((self.state / 'deck-beta-backup.json').read_text())['original'], original)
+        self.updater.restore(self.state)
+        self.assertEqual(self.target.read_bytes(), self.official)
 
     def test_corrupt_package_changes_nothing(self):
         before = self.snapshot()
@@ -198,7 +212,7 @@ class FriendInstallerTests(unittest.TestCase):
         self.assertEqual(self.target.read_bytes(), b'another installation')
 
     def test_real_launcher_payload_full_fresh_install(self):
-        desktop = (ROOT / 'releases/Install-Megabonk-Deck-Beta5.desktop').read_text()
+        desktop = (ROOT / 'releases/Install-Megabonk-Deck-Beta6.desktop').read_text()
         line = next(line[5:] for line in desktop.splitlines() if line.startswith('Exec='))
         payload = shlex.split(line)[2]
         # Real new Python process, exact Desktop Exec payload, actual pinned
@@ -213,11 +227,11 @@ def fake_popen(args, *a, **kw):
 subprocess.Popen = fake_popen
 def download(request, **kwargs):
     url = request.full_url
-    name = 'package' if 'megabonk-deck-beta5.zip' in url else 'loader' if 'bepinex' in url else 'official'
+    name = 'package' if 'megabonk-deck-beta6.zip' in url else 'loader' if 'bepinex' in url else 'official'
     return io.BytesIO(pathlib.Path(fixtures[name]).read_bytes())
 urllib.request.urlopen = download
 '''
-        fixtures = {'package': str(ROOT / 'releases/megabonk-deck-beta5.zip'),
+        fixtures = {'package': str(ROOT / 'releases/megabonk-deck-beta6.zip'),
                     'loader': os.environ['MEGABONK_LOADER_ZIP'],
                     'official': os.environ['MEGABONK_OFFICIAL_ZIP']}
         code = 'fixtures=' + repr(fixtures) + '\n' + driver + '\n' + payload
@@ -227,11 +241,11 @@ urllib.request.urlopen = download
                                     input='y\n', text=True, capture_output=True, timeout=60)
         self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
         self.assertEqual(self.updater.digest(self.target.read_bytes()), self.updater.BETA_DLL_SHA)
-        self.assertIn('Installed Deck beta 5!', result.stdout)
+        self.assertIn('Installed Deck beta 6!', result.stdout)
         self.assertEqual(result.stdout.count('Continue?'), 1)
 
     def test_real_launcher_payload_decline_in_unrelated_directory(self):
-        desktop = (ROOT / 'releases/Install-Megabonk-Deck-Beta5.desktop').read_text()
+        desktop = (ROOT / 'releases/Install-Megabonk-Deck-Beta6.desktop').read_text()
         line = next(line[5:] for line in desktop.splitlines() if line.startswith('Exec='))
         args = shlex.split(line)
         self.assertEqual(args[:2], ['python3', '-c'])
@@ -243,7 +257,7 @@ urllib.request.urlopen = download
             result = subprocess.run([sys.executable, '-c', code], cwd='/tmp', env=env,
                                     input='n\n', text=True, capture_output=True, timeout=30)
         self.assertEqual(result.returncode, 0, result.stderr + result.stdout)
-        self.assertIn('Deck beta 5', result.stdout)
+        self.assertIn('Deck beta 6', result.stdout)
         self.assertFalse(self.state.exists())
 
 

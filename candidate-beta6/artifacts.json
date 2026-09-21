@@ -1,0 +1,22 @@
+{
+  "releases/megabonk-deck-beta6.zip": {
+    "sha256": "e3dcce4709644ddb6548ffbe3afe8a88f5c2d0e630503350e73ccfd91f7d474d",
+    "bytes": 188985
+  },
+  "releases/megabonk-deck-beta6-test.zip": {
+    "sha256": "1b4fcf2b0f21d8e4fb85c9deb291e5f8c726a997bb17db9fcb2825d141f7a8af",
+    "bytes": 508865
+  },
+  "releases/Install-Megabonk-Deck-Beta6.desktop": {
+    "sha256": "d4a70d248edf9ceb0fed5abe95f537ee8c4eb6ab36315ea3bbf4cc0a9fe191cf",
+    "bytes": 13149
+  },
+  "mod-source/megabonk-deck-beta6-source.zip": {
+    "sha256": "b4d5279c588c4cb6fdf95ce2b0273021033b75f20cab8ee4554908b69c1d8776",
+    "bytes": 317123
+  },
+  "mod-source/deck-beta6.patch": {
+    "sha256": "5ed0f8fd95711f36006e1e4237cd55237ef0fef5efb87f32a998196f87d67db0",
+    "bytes": 13125
+  }
+}

@@ -1,4 +1,4 @@
-"""Unattended adapter for the immutable, checksum-pinned beta 5 bundle."""
+"""Unattended adapter for the immutable, checksum-pinned beta 6 bundle."""
 import contextlib
 import fcntl
 import hashlib
@@ -11,8 +11,8 @@ import zipfile
 
 import installer
 
-BUNDLE_SHA = '550a6caf0dbe23f2511417ff3ec48a1cc0a1dc8ec54a021ba69faae3fb3cacb2'
-PREFIX = 'megabonk-deck-beta5-test/'
+BUNDLE_SHA = '1b4fcf2b0f21d8e4fb85c9deb291e5f8c726a997bb17db9fcb2825d141f7a8af'
+PREFIX = 'megabonk-deck-beta6-test/'
 MAX_BUNDLE = 2 * 1024 * 1024
 
 
@@ -27,12 +27,12 @@ def verified_bundle(path, expected=BUNDLE_SHA):
         if not stat.S_ISREG(info.st_mode):
             raise RuntimeError('Bundle must be an absolute regular file path.')
         if info.st_size > MAX_BUNDLE:
-            raise RuntimeError('Bundle exceeds the beta 5 size limit.')
+            raise RuntimeError('Bundle exceeds the beta 6 size limit.')
         data = stream.read(MAX_BUNDLE + 1)
     if len(data) > MAX_BUNDLE:
-        raise RuntimeError('Bundle exceeds the beta 5 size limit.')
+        raise RuntimeError('Bundle exceeds the beta 6 size limit.')
     if expected != BUNDLE_SHA or hashlib.sha256(data).hexdigest() != BUNDLE_SHA:
-        raise RuntimeError('Expected the published, unchanged beta 5 test bundle.')
+        raise RuntimeError('Expected the published, unchanged beta 6 test bundle.')
     return data
 
 
@@ -42,9 +42,9 @@ def load_updater(data):
         raise RuntimeError('Unverified updater bundle.')
     with zipfile.ZipFile(io.BytesIO(data)) as archive:
         source = archive.read(PREFIX + 'candidate_updater.py')
-        package = archive.read(PREFIX + 'megabonk-deck-beta5.zip')
-    module = types.ModuleType('verified_beta5_updater')
-    exec(compile(source, 'verified_beta5_updater.py', 'exec'), module.__dict__)
+        package = archive.read(PREFIX + 'megabonk-deck-beta6.zip')
+    module = types.ModuleType('verified_beta6_updater')
+    exec(compile(source, 'verified_beta6_updater.py', 'exec'), module.__dict__)
     return module, package
 
 
@@ -58,7 +58,7 @@ def handle(request):
         if path.is_symlink():
             raise RuntimeError('Installer state must not contain symlinks.')
     state.mkdir(parents=True, exist_ok=True)
-    cache = state / 'remote' / 'verified-beta5-test.zip'
+    cache = state / 'remote' / 'verified-beta6-test.zip'
     if op == 'deploy':
         data = verified_bundle(request['path'], request.get('sha256'))
     else:
@@ -88,5 +88,5 @@ def handle(request):
             installer.atomic(cache, data)
             changed = updater.apply_update(game, state, package)
     target = game / 'BepInEx/plugins/MegabonkTogether/MegabonkTogether.dll'
-    return {'changed': changed, 'version': 'Deck beta 5', 'sha256': updater.digest(target.read_bytes()),
+    return {'changed': changed, 'version': 'Deck beta 6', 'sha256': updater.digest(target.read_bytes()),
             'bundle_sha256': BUNDLE_SHA, 'backup_preserved': True}
