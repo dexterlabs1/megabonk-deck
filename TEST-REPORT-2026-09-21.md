@@ -138,3 +138,8 @@ two-player character confirmation, match start and extended play. Fresh setup on
 a second physical Deck, built-in joystick behavior and physical STEAM+X also need
 confirmation. Virtual STEAM+X opened Steam's menu instead; direct remote typing
 worked. These results support a test release, not a claim of complete stability.
+
+Published as `deck-beta6` from commit `33d0315`. All five package/source assets
+were downloaded from the public release URLs and matched `candidate-beta6/artifacts.json`.
+The one-file launcher's SHA-256 is
+`d4a70d248edf9ceb0fed5abe95f537ee8c4eb6ab36315ea3bbf4cc0a9fe191cf`.
