@@ -17,7 +17,7 @@ python remote/deck.py launch
 python remote/deck.py screenshot
 python remote/deck.py logs
 python remote/deck.py stop
-python remote/deck.py deploy releases/megabonk-deck-beta6-test.zip
+python remote/deck.py deploy releases/megabonk-deck-beta7-test.zip
 python remote/deck.py restore
 ```
 

@@ -89,3 +89,64 @@ contained no modal missing-method or controller exceptions and no stale
 NetworkMenuTab ownership of the character window. Final official restore and
 beta 6 reinstall also passed. Testing ended with the game and virtual input
 stopped and beta 6 installed.
+
+## GOTCHA: main-menu cursor ownership blocks built-in controls on startup
+
+After beta 6 delivery, the user reported that the built-in controls worked in
+Steam but did not respond in Megabonk after starting the game themselves. The
+game was animating at 60 fps on the main menu; startup logs contained no modal
+errors. The virtual input service was absent during diagnosis.
+
+Steam's controller log recorded the physical Deck controller's mapping as
+`uses xinput : false` during the failed launch. After a Steam menu transition,
+it recorded `uses xinput : true` when returning to Megabonk. The user confirmed
+that physical D-pad/A controls then worked. Opening and closing Steam's menu is
+a confirmed workaround for beta 6 in this session.
+Another user-driven game restart at 14:02 reproduced `uses xinput : false`.
+The read-only gamepad event probe lost its device during that restart, so it
+provided no usable button-event evidence.
+The game has the standard Neptune Gamepad template and no explicit per-game
+Steam controller override in localconfig. Its launch option contains only the
+expected `winhttp` override.
+
+A source/compiled audit found no startup Steam Input initialization or Rewired
+controller reassignment in the mod. Without a modal, the beta 6 input prefixes
+pass through. Native Unity/Rewired focus gating remains another possibility;
+stripped compile references cannot establish the active runtime state.
+
+Do not start the virtual gamepad while reproducing this issue. Earlier virtual
+tests recovered after hotplug, which may mask the same startup failure. First
+compare built-in input before and after opening/closing Steam's menu, then
+repeat from a cold game launch if that restores controls.
+
+For a baseline comparison, `winhttp.dll` was temporarily renamed while the game
+was stopped. The next launch showed the unmodded menu with no Together button,
+and Steam again logged `uses xinput : false`. The user confirmed physical
+controls worked immediately. The loader was restored immediately after the
+unmodded menu appeared, with its original SHA-256 verified. A second comparison
+restored official Together 5.1.0 through the verified adapter. The user again
+reported working controls on startup. This narrows the regression to the Deck
+changes, and demonstrates that Steam's `uses xinput : false` line alone does not
+diagnose the failure. The main-menu cursor writes are the next candidate for a
+controlled comparison. No controller bindings were changed. Private evidence is under ignored
+`remote/runs/physical-controller-investigation/`.
+
+Beta 7 changes
+only cursor ownership to require an active modal, plus the displayed beta label.
+DLL SHA-256: `70f17f04dc145ccdf3236dbb27ba04efb6105e495c793821dab20c41741f3061`.
+Its source is in the separate local scratch directory
+`%TEMP%/megabonk-deck-beta7-cursor-candidate-20260921`. The 45-check production
+source harness passes; released beta 6 fails the new no-modal cursor check.
+The user confirmed that physical controls work immediately after cold launch:
+down to Together, back up, then A to open Together, without opening Steam first.
+This verifies the cursor change for the reported startup regression. It does not
+establish the exact native Unity/Proton focus mechanism or two-player gameplay.
+
+The initial diagnostic deployment bypassed the release updater. Before final
+delivery, the game was stopped and the checksum-verified official DLL restored.
+The normal beta 6 updater then recreated its restore marker. The final beta 7
+bundle upgraded that installation while preserving the same original backup
+path. Official restore returned the exact original DLL, and beta 7 reinstall
+and launch succeeded. The Deck is now on a normal managed beta 7 installation;
+the standard remote restore command works. No virtual gamepad was started during
+these startup and delivery tests.

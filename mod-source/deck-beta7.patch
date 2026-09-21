@@ -1,0 +1,43 @@
+Deck beta 6 -> Deck beta 7 candidate (incremental, not upstream-to-beta).
+Apply with git -c core.autocrlf=false apply -p1 from the extracted beta 6 source root.
+
+--- a/DECK-BETA.md
++++ b/DECK-BETA.md
+@@ -1,3 +1,15 @@
++# Deck beta 7 - native main-menu controller startup
++
++The mod now manages cursor visibility and locking only while a mod dialog is
++open. The native main menu retains its own cursor ownership and input-mode
++selection. The user verified a cold launch on the physical Deck: built-in D-pad
++navigation and A opened Together immediately without mouse intervention.
++
++Beta 6 modal navigation, the gold selection marker, character-menu handoff, and
++earlier hover/layout corrections remain. Protocol and assembly version stay 5.1.0.
++Two-player joining, match start, extended play, a fresh physical installation,
++and the built-in STEAM+X keyboard still require testing.
++
+ # Deck beta 6 - restore modal controller navigation
+ 
+ Live Deck testing exposed a Unity/IL2CPP array-return mismatch in three modal
+--- a/src/plugin/Patches/MainMenu.cs
++++ b/src/plugin/Patches/MainMenu.cs
+@@ -73,7 +73,7 @@
+             versionTmp.rectTransform.sizeDelta = new UnityEngine.Vector2(300, 28);
+             versionTmp.alignment = tmpText.alignment;
+             versionTmp.color = tmpText.color;
+-            versionTmp.text = $"v{MyPluginInfo.PLUGIN_VERSION} Deck beta 6";
++            versionTmp.text = $"v{MyPluginInfo.PLUGIN_VERSION} Deck beta 7";
+ 
+ 
+             var navigationWindow = go.GetComponentInParent<Window>();
+--- a/src/plugin/Scripts/Modal/DeckMenuControls.cs
++++ b/src/plugin/Scripts/Modal/DeckMenuControls.cs
+@@ -78,7 +78,7 @@
+         {
+             var modal = TopModal();
+             var active = WindowManager.activeWindow;
+-            bool menu = modal != null || (active != null && active.name == "Menu");
++            bool menu = modal != null;
+             if (menu)
+             {
+                 if (!cursorOwned)

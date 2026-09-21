@@ -25,6 +25,21 @@ var originalButtons = window.allButtons;
 var originalSet = window.allButtonsHashed;
 WindowManager.activeWindow = window;
 ButtonManager.selectedButton2 = background;
+var controls = new DeckMenuControls();
+controls.Awake();
+foreach (bool nativeVisible in new[] { false, true })
+    foreach (var nativeLock in new[] { UnityEngine.CursorLockMode.None, UnityEngine.CursorLockMode.Locked })
+    {
+        UnityEngine.Cursor.visible = nativeVisible;
+        UnityEngine.Cursor.lockState = nativeLock;
+        controls.LateUpdate();
+        Check(UnityEngine.Cursor.visible == nativeVisible && UnityEngine.Cursor.lockState == nativeLock,
+            $"no modal preserves native cursor visible={nativeVisible}, lock={nativeLock}");
+    }
+Check(ReferenceEquals(window.allButtons, originalButtons) && ButtonManager.selectedButton2 == background,
+    "no modal preserves native menu buttons and focus");
+UnityEngine.Cursor.visible = false;
+UnityEngine.Cursor.lockState = UnityEngine.CursorLockMode.Locked;
 var first = new MyButtonNormal { background = new MaskableGraphic() };
 var second = new MyButtonNormal { background = new MaskableGraphic() };
 first.gameObject.component = first;
@@ -38,9 +53,9 @@ var field = new TMPro.TMP_InputField();
 var modal = new ModalBase { DefaultControllerButton = second };
 modal.NavigationPanel.children.AddRange(new object[] { first, second, field });
 DeckMenuControls.Modals.Add(modal);
-var controls = new DeckMenuControls();
-controls.Awake();
 controls.LateUpdate();
+Check(UnityEngine.Cursor.visible && UnityEngine.Cursor.lockState == UnityEngine.CursorLockMode.None,
+    "opening a modal unlocks and shows cursor");
 Check(background.button.navigation.mode == Navigation.Mode.None, "explicit background navigation disabled");
 Check(backgroundAutomatic.button.navigation.mode == Navigation.Mode.None, "automatic background navigation disabled");
 Check(window.allButtons.SequenceEqual(new[] { first, second }), "native window contains only modal buttons");
@@ -81,6 +96,9 @@ Check(restored.mode == Navigation.Mode.Explicit && restored.wrapAround && restor
 Check(backgroundAutomatic.button.navigation.mode == Navigation.Mode.Automatic, "automatic navigation restored");
 Check(ButtonManager.selectedButton2 == background, "original menu focus restored");
 Check(first.background.color.Equals(firstColor) && second.background.color.Equals(secondColor), "Back restores exact original colors for all modal graphics");
+controls.LateUpdate();
+Check(!UnityEngine.Cursor.visible && UnityEngine.Cursor.lockState == UnityEngine.CursorLockMode.Locked,
+    "closing modal restores exact native cursor state on next tick");
 controls.OnDestroy();
 Check(background.button.navigation.mode == Navigation.Mode.Explicit, "repeated cleanup preserves restored navigation");
 var custom = new CustomButton

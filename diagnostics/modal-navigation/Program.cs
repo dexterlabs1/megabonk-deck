@@ -1,11 +1,18 @@
 using Mono.Cecil;
 using Mono.Cecil.Cil;
 
-if (args.Length < 2 || args.Length > 3)
+if (args.Length < 2 || args.Length > 4)
 {
-    Console.Error.WriteLine("Usage: modal-navigation <candidate.dll> <beta5.dll> [Deck-UnityEngine.CoreModule.dll]");
+    Console.Error.WriteLine("Usage: modal-navigation <candidate.dll> <beta5.dll> [Deck-UnityEngine.CoreModule.dll|-] [expected-beta-number=6]");
     return 2;
 }
+int expectedBeta = 6;
+if (args.Length == 4 && (!int.TryParse(args[3], out expectedBeta) || expectedBeta < 1))
+{
+    Console.Error.WriteLine("Expected beta number must be a positive integer.");
+    return 2;
+}
+string expectedLabel = "Deck beta " + expectedBeta;
 
 int passed = 0, failed = 0;
 void Check(bool condition, string label)
@@ -48,7 +55,8 @@ Check(calls.Where(Adapted).All(m => m.Parameters.Count == 2
 Check(candidate.Name.Version == baseline.Name.Version, "assembly/protocol version unchanged");
 Check(candidate.MainModule.Types.SelectMany(t => t.Methods).Where(m => m.HasBody)
     .SelectMany(m => m.Body.Instructions).Any(i => i.OpCode == OpCodes.Ldstr
-        && i.Operand is string text && text.Contains("Deck beta 6")), "candidate displays Deck beta 6");
+        && i.Operand is string text && text.EndsWith(expectedLabel, StringComparison.Ordinal)),
+    "candidate displays exact " + expectedLabel + " label");
 
 var custom = candidate.MainModule.Types.Single(t => t.FullName == "MegabonkTogether.Scripts.Button.CustomButton");
 foreach (var (name, color) in new[] { ("StartHover", "get_hoverColor"), ("StopHover", "get_defaultColor") })
@@ -68,7 +76,7 @@ foreach (var (name, color) in new[] { ("StartHover", "get_hoverColor"), ("StopHo
         $"{name} callback can override default feedback");
 }
 
-if (args.Length == 3)
+if (args.Length >= 3 && args[2] != "-")
 {
     using var runtime = AssemblyDefinition.ReadAssembly(args[2]);
     var gameObject = runtime.MainModule.Types.Single(t => t.FullName == "UnityEngine.GameObject");

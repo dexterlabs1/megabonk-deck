@@ -1,3 +1,6 @@
 # Keep verified release payloads and source patches byte-for-byte intact.
 /releases/Install-Megabonk-Deck-Beta6.desktop -text
 /mod-source/deck-beta6.patch -text
+
+/releases/Install-Megabonk-Deck-Beta7.desktop -text
+/mod-source/deck-beta7.patch -text

@@ -2,23 +2,23 @@
 
 A downloadable launcher that installs **Megabonk Together 5.1.0 (Proton)** and **BepInEx 6 build 752**. No terminal commands, sudo, password, or disabling SteamOS read-only mode needed.
 
-## Install Deck beta 6
+## Install Deck beta 7
 
-**[Download the one-file installer](https://github.com/dexterlabs1/megabonk-deck/releases/download/deck-beta6/Install-Megabonk-Deck-Beta6.desktop)** — about 13 KB. Send this link to your friend. No ZIP extraction or separate update is needed.
+**[Download the one-file installer](https://github.com/dexterlabs1/megabonk-deck/releases/download/deck-beta7/Install-Megabonk-Deck-Beta7.desktop)** — about 13 KB. Send this link to your friend. No ZIP extraction or separate update is needed.
 
-Beta 6 fixes modal controller compatibility and focus, adds visible selection feedback, and retains the separate room-code field and earlier hover-freeze corrections. Select the field, press **STEAM+X**, enter the host's code, then select **Join**. Direct keyboard entry has been tested on a physical Deck; the built-in keyboard shortcut and two-player joining still need confirmation.
+Beta 7 fixes built-in controls being ignored on startup. It leaves the main menu cursor state to the game and takes control only while a multiplayer popup is open. The user verified D-pad navigation and A immediately after a cold launch, without opening Steam's menu. It retains beta 6's modal focus, visible selection and earlier freeze/layout fixes. Select the field, press **STEAM+X**, enter the host's code, then select **Join**. Direct keyboard entry has been tested on a physical Deck; the built-in keyboard shortcut and two-player joining still need confirmation.
 
 1. Install Megabonk through Steam and launch it once, then close it.
-2. In Desktop Mode, download and open **Install-Megabonk-Deck-Beta6.desktop**. Accept **Execute / Trust and Launch** if prompted, then confirm the installation.
-3. Return to Gaming Mode, launch Megabonk, and check for **Deck beta 6**. Both players use this same installer.
+2. In Desktop Mode, download and open **Install-Megabonk-Deck-Beta7.desktop**. Accept **Execute / Trust and Launch** if prompted, then confirm the installation.
+3. Return to Gaming Mode, launch Megabonk, and check for **Deck beta 7**. Both players use this same installer.
 
 Internet is required. A fresh setup downloads about 34 MB and restarts Steam. Existing managed official/beta installations update only the multiplayer DLL and preserve the original backup. The launcher downloads the runtime files only; source and diagnostics are separate. Host character confirmation requires at least two players in the lobby.
 
-The [full test bundle](https://github.com/dexterlabs1/megabonk-deck/releases/download/deck-beta6/megabonk-deck-beta6-test.zip) remains available for offline updates, matching source, and **Restore-Official-Multiplayer.desktop**. [Test results and remaining validation](TEST-REPORT-2026-09-21.md). Steam invites remain disabled; share the room code manually. The trackpad needs a Mouse binding in Steam Input.
+The [full test bundle](https://github.com/dexterlabs1/megabonk-deck/releases/download/deck-beta7/megabonk-deck-beta7-test.zip) remains available for offline updates, matching source, and **Restore-Official-Multiplayer.desktop**. [Test results and remaining validation](TEST-REPORT-2026-09-21.md). Steam invites remain disabled; share the room code manually. The trackpad needs a Mouse binding in Steam Input.
 
 ## Original upstream-only installer
 
-The older `Install-Megabonk-Together.desktop` installs official Together 5.1.0 without the Deck beta fixes; `Update-Deck-Controls.desktop` installs beta 2. Use the one-file beta 6 installer above for current testing. The current installer retains the Steam VDF compatibility fixes; do not delete or reset Steam settings.
+The older `Install-Megabonk-Together.desktop` installs official Together 5.1.0 without the Deck beta fixes; `Update-Deck-Controls.desktop` installs beta 2. Use the one-file beta 7 installer above for current testing. The current installer retains the Steam VDF compatibility fixes; do not delete or reset Steam settings.
 
 ## Launching and troubleshooting
 
@@ -39,7 +39,7 @@ If the mod does not load, choose **Proton Experimental** in Steam > Megabonk > P
 - Refuses an existing unmanaged BepInEx installation to avoid mixing loaders. Does not remove your existing mods to make room.
 - Installs the loader and plugin together. BepInEx generates its assemblies on launch before loading plugins. This combined installation flow is not hardware-validated here; upstream documents a loader-only first run.
 
-The beta 6 `.desktop` file embeds the audited installer, updater and a small coordinator; it does not fetch executable installer code from a moving branch. `python3 friend-installer/build.py` regenerates it. Python 3 and the normal SteamOS commands are used. If Zenity is unavailable, the terminal asks for confirmation.
+The beta 7 `.desktop` file embeds the audited installer, updater and a small coordinator; it does not fetch executable installer code from a moving branch. `python3 friend-installer/build.py` regenerates it. Python 3 and the normal SteamOS commands are used. If Zenity is unavailable, the terminal asks for confirmation.
 
 ## Compatibility and limits
 

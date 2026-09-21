@@ -24,7 +24,7 @@ class DeploymentTests(unittest.TestCase):
         self.tmp = tempfile.TemporaryDirectory()
         self.addCleanup(self.tmp.cleanup)
         self.home = Path(self.tmp.name)
-        self.bundle = ROOT / 'releases/megabonk-deck-beta6-test.zip'
+        self.bundle = ROOT / 'releases/megabonk-deck-beta7-test.zip'
         self.request = {'op': 'deploy', 'path': str(self.bundle), 'sha256': self.d.BUNDLE_SHA}
         self.state = self.home / '.local/share/megabonk-deck'
         self.game = self.home / '.local/share/Steam/steamapps/common/Megabonk'
@@ -46,7 +46,7 @@ class DeploymentTests(unittest.TestCase):
     def test_deploy_repeat_restore_no_prompts(self):
         result = self.d.handle(self.request)
         self.assertTrue(result['changed'])
-        self.assertEqual(result['sha256'], 'c79cf7d1abf4b25c02ee8b51d7d754f57a98a65fb213fad0464059d446af4580')
+        self.assertEqual(result['sha256'], '70f17f04dc145ccdf3236dbb27ba04efb6105e495c793821dab20c41741f3061')
         marker = json.loads((self.state / 'deck-beta-backup.json').read_text())
         self.assertEqual(Path(marker['original']).read_bytes(), self.original)
         self.assertFalse(self.d.handle(self.request)['changed'])
@@ -58,12 +58,12 @@ class DeploymentTests(unittest.TestCase):
             self.d.handle(dict(self.request, sha256='0' * 64))
         self.assertEqual(self.target.read_bytes(), self.original)
 
-    def test_beta5_upgrade_restore_preserves_original_backup(self):
+    def test_beta6_upgrade_restore_preserves_original_backup(self):
         self.state.mkdir(parents=True)
-        with zipfile.ZipFile(ROOT / 'releases/megabonk-deck-beta5-test.zip') as archive:
-            updater = types.ModuleType('beta5_updater')
-            exec(archive.read('megabonk-deck-beta5-test/candidate_updater.py'), updater.__dict__)
-            package = archive.read('megabonk-deck-beta5-test/megabonk-deck-beta5.zip')
+        with zipfile.ZipFile(ROOT / 'releases/megabonk-deck-beta6-test.zip') as archive:
+            updater = types.ModuleType('beta6_updater')
+            exec(archive.read('megabonk-deck-beta6-test/candidate_updater.py'), updater.__dict__)
+            package = archive.read('megabonk-deck-beta6-test/megabonk-deck-beta6.zip')
         updater.apply_update(self.game, self.state, package)
         original = json.loads((self.state / 'deck-beta-backup.json').read_text())['original']
         self.assertTrue(self.d.handle(self.request)['changed'])
@@ -85,7 +85,7 @@ class DeploymentTests(unittest.TestCase):
 
     def test_restore_rechecks_cached_code(self):
         self.d.handle(self.request)
-        cache = self.state / 'remote/verified-beta6-test.zip'
+        cache = self.state / 'remote/verified-beta7-test.zip'
         cache.write_bytes(b'corrupted')
         with self.assertRaisesRegex(RuntimeError, 'published'):
             self.d.handle({'op': 'restore'})

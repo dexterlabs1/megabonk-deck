@@ -143,3 +143,37 @@ Published as `deck-beta6` from commit `33d0315`. All five package/source assets
 were downloaded from the public release URLs and matched `candidate-beta6/artifacts.json`.
 The one-file launcher's SHA-256 is
 `d4a70d248edf9ceb0fed5abe95f537ee8c4eb6ab36315ea3bbf4cc0a9fe191cf`.
+
+## Beta 7 built-in controller startup fix
+
+The user reported that physical Deck controls worked in Steam but not in beta 6
+after a cold game launch. Opening and closing Steam's menu restored them. Tests
+with the loader temporarily disabled, then with official Together 5.1.0, both
+accepted physical controls immediately. Steam logged `uses xinput : false` in
+working vanilla as well, so that message did not identify the defect.
+
+Beta 7 limits cursor ownership to active multiplayer modals. Beta 6 forced an
+unlocked, visible cursor every frame on the normal main menu. The user confirmed
+that beta 7 immediately accepted D-pad navigation down to Together, back up,
+and A to open Together without first opening Steam's menu. This is physical
+input confirmation, separate from the earlier virtual-controller tests.
+
+The tested DLL SHA-256 is
+`70f17f04dc145ccdf3236dbb27ba04efb6105e495c793821dab20c41741f3061`.
+The only code changes from beta 6 are the cursor condition and displayed beta
+number. Protocol/assembly version remains 5.1.0. All 45 source-harness checks and
+26 compiled-IL checks pass. Released beta 6 fails the new native cursor-state
+preservation test, as expected. The Release build succeeds with no errors.
+
+All 18 candidate, 15 friend-installer and 21 remote integration checks pass using
+real pinned archives in WSL. The 13,265-byte friend launcher downloads runtime
+packages only. The source archive retains 299 members with exactly three changed
+from beta 6, and the incremental patch reproduces it byte for byte.
+
+On the actual Deck, beta 6 upgraded to the final beta 7 bundle while preserving
+the original backup path. Official restore returned the expected original DLL
+hash. Beta 7 reinstall and launch then succeeded, with no new startup errors.
+The installed DLL is identical to the candidate the user physically tested.
+
+Two-player joining, match start, extended play, a fresh install on a friend's
+physical Deck and physical STEAM+X remain unverified.

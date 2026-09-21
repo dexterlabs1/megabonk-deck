@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""One confirmation for the audited official installer followed by Deck beta 6."""
+"""One confirmation for the audited official installer followed by Deck beta 7."""
 import fcntl
 import hashlib
 import json
@@ -9,8 +9,8 @@ import sys
 import installer
 import candidate_updater as updater
 
-PACKAGE_URL = 'https://github.com/dexterlabs1/megabonk-deck/releases/download/deck-beta6/megabonk-deck-beta6.zip'
-PACKAGE_SHA = 'e3dcce4709644ddb6548ffbe3afe8a88f5c2d0e630503350e73ccfd91f7d474d'
+PACKAGE_URL = 'https://github.com/dexterlabs1/megabonk-deck/releases/download/deck-beta7/megabonk-deck-beta7.zip'
+PACKAGE_SHA = 'dbaeb5115e25d6d5a7094db8657acb0c50bf904d5fc5628c1bd5d69e1955d41d'
 
 
 def installed_kind(game, state):
@@ -38,9 +38,9 @@ def get_package():
     package = installer.download(PACKAGE_URL, PACKAGE_SHA)
     # Keep the boundary explicit even if a transport implementation changes.
     if hashlib.sha256(package).hexdigest() != PACKAGE_SHA:
-        raise RuntimeError('Beta 6 download checksum mismatch. No game files changed.')
+        raise RuntimeError('Beta 7 download checksum mismatch. No game files changed.')
     if updater.digest(package) != updater.PACKAGE_SHA:
-        raise RuntimeError('Beta 6 package checksum mismatch. No game files changed.')
+        raise RuntimeError('Beta 7 package checksum mismatch. No game files changed.')
     return package
 
 
@@ -55,11 +55,11 @@ def main():
     if installer.running('Megabonk.exe'):
         raise RuntimeError('Close Megabonk before installing.')
     kind = installed_kind(game, state)
-    message = ('Install Megabonk Together with Deck beta 6?\n\n'
+    message = ('Install Megabonk Together with Deck beta 7?\n\n'
                'Both players should install this version. Close Megabonk first.\n\n'
                + ('This downloads about 34 MB, backs up saves and changed files, and sets the Steam launch option. Steam will close and reopen. Finish other games/downloads first.\n\n'
                   if kind == 'fresh' else 'This updates the multiplayer DLL and preserves the official mod backup. Steam can stay open.\n\n')
-               + 'Beta 6 is a test version. Deck typing and two-player play still need testing.\n\nGame: ' + str(game))
+               + 'Beta 7 is a test version. Deck typing and two-player play still need testing.\n\nGame: ' + str(game))
     if not installer.dialog(message, True):
         return False
     package = get_package()
@@ -88,11 +88,11 @@ def main():
         except BlockingIOError:
             raise RuntimeError('Another installer is running. Close it and try again.')
         if installer.running('Megabonk.exe'):
-            raise RuntimeError('Close Megabonk and run this again to finish beta 6.')
+            raise RuntimeError('Close Megabonk and run this again to finish beta 7.')
         installed_kind(game, state)
         changed = updater.apply_update(game, state, package)
-    installer.dialog(('Installed Deck beta 6!' if changed else 'Deck beta 6 is already installed.')
-                     + '\n\nLaunch Megabonk normally in Gaming Mode. The first modded launch can take several minutes. The menu should say Deck beta 6.\n\n'
+    installer.dialog(('Installed Deck beta 7!' if changed else 'Deck beta 7 is already installed.')
+                     + '\n\nLaunch Megabonk normally in Gaming Mode. The first modded launch can take several minutes. The menu should say Deck beta 7.\n\n'
                      'Open Together! > Friendlies. One player hosts and shares the code; the other enters it and joins. Select the code field and press STEAM+X to type. Host Confirm needs two players.\n\n'
                      'Both players should use this same installer. If the game does not start, select Proton Experimental in Steam > Megabonk > Properties > Compatibility.\n\n'
                      'Original backups: ' + str(state / 'backups'))
@@ -103,5 +103,5 @@ if __name__ == '__main__':
     try:
         main()
     except Exception as exc:
-        installer.dialog('Installation stopped: ' + str(exc) + '\n\nBeta 6 completion was not confirmed. If Steam closed, reopen it normally. Your backups are retained.')
+        installer.dialog('Installation stopped: ' + str(exc) + '\n\nBeta 7 completion was not confirmed. If Steam closed, reopen it normally. Your backups are retained.')
         sys.exit(1)

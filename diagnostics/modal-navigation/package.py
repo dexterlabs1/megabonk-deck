@@ -1,4 +1,4 @@
-"""Package beta 6 source and prove its incremental patch reproduces every byte."""
+"""Package beta 7 source and prove its incremental patch reproduces every byte."""
 import difflib
 import hashlib
 import json
@@ -11,26 +11,25 @@ from zipfile import ZipFile, ZipInfo, ZIP_DEFLATED
 repo = Path(__file__).resolve().parents[2]
 source = Path(sys.argv[1]).resolve()
 changed = ("DECK-BETA.md", "src/plugin/Patches/MainMenu.cs",
-           "src/plugin/Scripts/Modal/DeckMenuControls.cs", "src/plugin/Scripts/Button/CustomButton.cs",
-           "src/plugin/Scripts/Modal/NetworkMenuTab.cs")
-baseline_path = repo / "mod-source/megabonk-deck-beta5-source.zip"
+           "src/plugin/Scripts/Modal/DeckMenuControls.cs")
+baseline_path = repo / "mod-source/megabonk-deck-beta6-source.zip"
 with ZipFile(baseline_path) as baseline:
     files = {name: baseline.read(name) for name in baseline.namelist()}
 for name, data in files.items():
     if name.endswith((".cs", ".csproj")) and name not in changed:
         assert (source / name).read_bytes() == data, name
 
-patch = ["Deck beta 5 -> Deck beta 6 candidate (incremental, not upstream-to-beta).\n",
-         "Apply with git -c core.autocrlf=false apply -p1 from the extracted beta 5 source root.\n\n"]
+patch = ["Deck beta 6 -> Deck beta 7 candidate (incremental, not upstream-to-beta).\n",
+         "Apply with git -c core.autocrlf=false apply -p1 from the extracted beta 6 source root.\n\n"]
 for name in changed:
     data = (source / name).read_bytes()
     patch.extend(difflib.unified_diff(files[name].decode().splitlines(keepends=True),
                                     data.decode().splitlines(keepends=True),
                                     fromfile="a/" + name, tofile="b/" + name))
     files[name] = data
-patch_path = repo / "mod-source/deck-beta6.patch"
+patch_path = repo / "mod-source/deck-beta7.patch"
 patch_path.write_text("".join(patch), encoding="utf-8", newline="\n")
-with tempfile.TemporaryDirectory(prefix="megabonk-beta6-patch-") as temporary:
+with tempfile.TemporaryDirectory(prefix="megabonk-beta7-patch-") as temporary:
     with ZipFile(baseline_path) as baseline:
         baseline.extractall(temporary)
     subprocess.run(["git", "-c", "core.autocrlf=false", "apply", "-p1", str(patch_path)],
@@ -38,7 +37,7 @@ with tempfile.TemporaryDirectory(prefix="megabonk-beta6-patch-") as temporary:
     for name, data in files.items():
         assert (Path(temporary) / name).read_bytes() == data, name
 
-source_zip = repo / "mod-source/megabonk-deck-beta6-source.zip"
+source_zip = repo / "mod-source/megabonk-deck-beta7-source.zip"
 with ZipFile(source_zip, "w", compression=ZIP_DEFLATED, compresslevel=9) as out:
     for name, data in sorted(files.items()):
         info = ZipInfo(name, (2026, 9, 21, 0, 0, 0))

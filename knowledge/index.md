@@ -1,10 +1,10 @@
 # Project knowledge
 
-- [Physical Deck remote testing](./remote-live-testing.md) - verified pairing, capture, input, restore and reboot; live mod findings and remaining multiplayer checks.
-- [Modal controller regression](../diagnostics/modal-navigation/README.md) - generated IL2CPP array signatures and modal focus checks for beta 6.
+- [Physical Deck remote testing](./remote-live-testing.md) - verified pairing, capture, input, restore and reboot; beta 7 built-in controller startup fix and remaining multiplayer checks.
+- [Modal controller regression](../diagnostics/modal-navigation/README.md) - generated IL2CPP array signatures and modal focus checks for betas 6 and 7.
 
 - [Remote Deck workflow](../remote/README.md) — Valve pairing, SSH commands, screenshots, virtual input, unattended beta deployment, and live acceptance steps.
-- [One-file friend installer](../friend-installer/README.md) — minimal beta 5 launcher, fresh installation and upgrade behavior, build and integration tests.
+- [One-file friend installer](../friend-installer/README.md) — minimal beta 7 launcher, fresh installation and upgrade behavior, build and integration tests.
 
 - [IL2CPP hover recursion](./il2cpp-hover-recursion.md) — why injected button overrides must not call the native virtual base hover methods, and how to check the compiled DLL.
 - [Menu button cloning](./menu-button-cloning.md) — preserve native component references, navigation settings, and local UI geometry when replacing a cloned button; solo-host confirmation rule.

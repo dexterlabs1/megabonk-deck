@@ -37,10 +37,16 @@ types. Text editing clears the button marker until editing ends.
 Protocol and assembly version remain 5.1.0.
 
 ```text
-dotnet run --project diagnostics/modal-navigation -- <beta6.dll> <beta5.dll> [Deck-UnityEngine.CoreModule.dll]
+dotnet run --project diagnostics/modal-navigation -- <candidate.dll> <beta5.dll> [Deck-UnityEngine.CoreModule.dll|-] [expected-beta-number=6]
 dotnet run --project diagnostics/modal-navigation/focus -p:ProductionSource=<absolute-path-to-DeckMenuControls.cs> -p:ProductionButton=<absolute-path-to-CustomButton.cs>
 python diagnostics/modal-navigation/package.py <extracted-built-source>
 ```
+
+The expected label defaults to beta 6 for historical runs. For beta 7, pass `7`
+as the fourth argument; use `-` as the third argument if no runtime reference is
+available. Label matching is exact, so requesting beta 6 cannot accept beta 60.
+Always supply the actual beta 5 DLL as the second argument: it is the deliberate
+negative control for the incompatible component-array calls.
 
 The checker reproduces beta 5's incompatible references as negative controls,
 checks all corrected call sites in compiled IL, and can inspect the actual Deck
@@ -49,7 +55,7 @@ runtime reference inspected during diagnosis has SHA-256
 `af00f610e23e10b5271f179f124f1c49adce950edf15f6e0b3fb030a20ae5545`.
 
 The focus harness compiles the complete production controller against managed
-test doubles. Its 38 checks cover stable-membership escape, native list
+test doubles. Its 45 checks cover stable-membership escape, native list
 replacement, inactive controls, text-edit Back, modal Back, full navigation
 struct restoration, exact original list restoration, repeated cleanup, visible
 hover/default colors, null graphics, callback ordering and unchanged clicks.
@@ -59,6 +65,14 @@ Character transition checks preserve the native character collections/selection,
 stop stale network-modal input suppression, and retain other modal types' ability
 to own the character window. Compiled IL verifies release-before-transition and
 real-time cleanup in both success coroutines (26 checks with the runtime reference).
+
+The latest harness also checks beta 7's modal-only cursor ownership: all four
+native visibility/lock combinations are preserved without a modal, ordinary
+menu buttons and focus remain intact, opening a popup shows/unlocks the cursor,
+and closing it restores the exact original cursor state. Beta 6 intentionally
+fails the no-modal cursor negative control. These seven additions address a
+physical cold-launch failure that required opening/closing Steam's menu; they
+do not replace that physical acceptance test.
 It does not simulate Unity's native navigation implementation.
 
 Packaging retains all 299 source members and checks that unchanged C#/project
