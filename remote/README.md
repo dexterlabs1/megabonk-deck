@@ -29,6 +29,12 @@ into this repo. Connection settings and SSH known-host fingerprints live under
 `~/.config/megabonk-deck`; a changed fingerprint is refused. Initial contact trusts
 the discovered/addressed host on the local network.
 
+Pairing failures are returned with the Deck's explanation. A timeout can leave
+the approval prompt open on Deck; a second request then returns **only one pairing
+prompt at a time**. Approve or dismiss that existing prompt before another request.
+If approval happened after the PC timed out, use `configure` with the existing
+Devkit key and test SSH before trying to register again. Do not regenerate keys.
+
 For another PC: clone Valve's source at the pinned commit into the directory
 above, create a Python 3.11+ venv, and install `appdirs paramiko signalslot zeroconf`
 there. Our normal CLI needs only Python and OpenSSH. Pairing uses Valve's installed
@@ -125,7 +131,8 @@ Delivery verification (2026-09-21): 87 tests passed in WSL; Windows passed 65 wi
 22 Linux-only skips. This includes executing the actual JSON helper in a child
 process to install beta 5 and restore the original DLL under a temporary HOME.
 The official pairing library loads and LAN discovery finds the Deck. Pairing has
-not yet completed. Native capture, virtual-controller recognition, game
+not yet completed: the initial request timed out and the Deck reported that one
+pairing prompt was still pending. Native capture, virtual-controller recognition, game
 navigation and reconnect after reboot remain unverified.
 
 To remove the workflow, stop input, remove the deployed `remote` helper directory
